@@ -273,12 +273,18 @@ function Test({ language, username }) {
     }
     let trimmed = rawMessage.trim()
     let displayText = trimmed
-    let questionText = trimmed
+    let questionText = ''
     let standardAnswer = null
 
     try {
+      // 先移除可能存在的 ```json ... ``` 代码块（包括其中的内容）
+      const fencedBlockRegex = /```json[\s\S]*?```/i
+      if (fencedBlockRegex.test(trimmed)) {
+        trimmed = trimmed.replace(fencedBlockRegex, '').trim()
+      }
+
       // 尝试匹配输出中的 JSON（通常在末尾）
-      const jsonMatch = trimmed.match(/\{[\s\S]*\}/)
+      const jsonMatch = rawMessage.match(/\{[\s\S]*\}/)
       if (jsonMatch) {
         const obj = JSON.parse(jsonMatch[0])
         if (obj.question) {
@@ -292,6 +298,8 @@ function Test({ language, username }) {
       }
     } catch (error) {
       console.log('parseExaminerOutput: 解析考官JSON失败，退回使用完整文本', error)
+      displayText = trimmed
+      questionText = trimmed
     }
 
     return {
