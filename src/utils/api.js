@@ -611,7 +611,7 @@ export const callDeepSeekAPIWithRole = async (messages, role, language, currentL
   return callDeepSeekAPI(apiMessages)
 }
 
-export const evaluateAnswer = async (question, answer, taskLevel, language) => {
+export const evaluateAnswer = async (question, answer, taskLevel, language, standardAnswer = null) => {
   const promptBuilders = EVALUATOR_PROMPT_BUILDERS[language] || EVALUATOR_PROMPT_BUILDERS.en
   const taskLevelLabel = getBloomLabel(taskLevel, language)
   const evaluatorResults = []
@@ -619,7 +619,8 @@ export const evaluateAnswer = async (question, answer, taskLevel, language) => {
   // 使用三个不同的评估器进行并行评估
   for (let i = 0; i < promptBuilders.length; i++) {
     const buildPrompt = promptBuilders[i]
-    const promptContent = buildPrompt({ question, answer, taskLevelLabel, taskLevel })
+    // 将标准答案一并传入提示词构造器（部分评估者会使用）
+    const promptContent = buildPrompt({ question, answer, taskLevelLabel, taskLevel, standardAnswer })
 
     try {
       // 通过后端代理调用 DeepSeek，避免在前端暴露 API Key

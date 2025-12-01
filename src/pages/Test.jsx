@@ -51,6 +51,8 @@ function Test({ language, username }) {
   // 使用 useRef 来同步存储 previousQuestion，避免异步更新问题
   const previousQuestionRef = useRef(null)
   const previousTaskLevelRef = useRef(null)
+  // 保存当前考题的参考标准答案，仅供评估者使用，不在界面中显示
+  const standardAnswerRef = useRef(null)
   // 当前测试进度level，初始值为1（remember）
   const [currentTestLevel, setCurrentTestLevel] = useState('remember')
   // 当前这一轮评估已经完成，等待用户选择“再来一个问题 / 进入下一层级”
@@ -260,6 +262,45 @@ function Test({ language, username }) {
       : `Task "${taskName}" average score ${evaluation.score.toFixed(1)}/10.`
   }
 
+  // 解析考官输出：拆分为用于展示的问题文本、用于评估的纯问题文本和标准答案
+  const parseExaminerOutput = (rawMessage) => {
+    if (!rawMessage || typeof rawMessage !== 'string') {
+      return {
+        displayText: '',
+        questionText: '',
+        standardAnswer: null
+      }
+    }
+    let trimmed = rawMessage.trim()
+    let displayText = trimmed
+    let questionText = trimmed
+    let standardAnswer = null
+
+    try {
+      // 尝试匹配输出中的 JSON（通常在末尾）
+      const jsonMatch = trimmed.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        const obj = JSON.parse(jsonMatch[0])
+        if (obj.question) {
+          questionText = String(obj.question).trim()
+        }
+        if (obj.standard_answer) {
+          standardAnswer = String(obj.standard_answer).trim()
+        }
+        // 将 JSON 部分从展示文本中移除，只保留自然语言说明 + 链接 + 题目
+        displayText = trimmed.replace(jsonMatch[0], '').trim()
+      }
+    } catch (error) {
+      console.log('parseExaminerOutput: 解析考官JSON失败，退回使用完整文本', error)
+    }
+
+    return {
+      displayText,
+      questionText,
+      standardAnswer
+    }
+  }
+
   // 统一封装：向考官请求下一道题
   const askExaminerQuestion = async (targetLevel, baseConversation = null) => {
     // targetLevel：希望考官使用的层级；如果未指定则默认 currentTestLevel
@@ -298,9 +339,13 @@ function Test({ language, username }) {
       ]
 
       const response = await callDeepSeekAPIWithRole(apiMessages, 'examiner', language, levelToUse)
+      const { displayText, questionText, standardAnswer } = parseExaminerOutput(response)
+      // 记录当前标准答案，仅供评估者使用
+      standardAnswerRef.current = standardAnswer || null
       const assistantMessage = {
         role: 'assistant',
-        content: response,
+        // 只在界面上展示自然语言说明 + 链接 + 题目文本，不展示标准答案 JSON
+        content: displayText || questionText || response,
         timestamp: new Date().toISOString()
       }
 
@@ -308,20 +353,21 @@ function Test({ language, username }) {
       setConversation(finalConversation)
       addHistoryEntry({
         speaker: examinerName,
-        content: response,
+        content: displayText || questionText || response,
         type: 'assistant'
       })
       
       // 添加到统一日志
       addToUnifiedLog({
         role: 'examiner',
+        // 统一日志中保留完整原始响应（包含标准答案JSON），便于研究与导出
         content: response,
         agentType: 'examiner',
         speaker: examinerName
       })
 
-      // 记录当前问题（为下一次用户回答做准备）
-      detectQuestionFromAssistant(response)
+      // 记录当前问题（为下一次用户回答做准备）——使用纯问题文本，避免带上JSON
+      detectQuestionFromAssistant(questionText || displayText || response)
       // 进入“等待用户回答本题”的状态
       setAwaitingNextAction(false)
     } catch (error) {
@@ -431,7 +477,8 @@ function Test({ language, username }) {
           questionToEvaluate,
           userMessage,
           currentTestLevel, // 使用currentTestLevel作为评估标准
-          language
+          language,
+          standardAnswerRef.current || null
         )
         console.log('评估结果:', evaluation)
 
