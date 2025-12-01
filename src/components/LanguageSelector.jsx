@@ -1,0 +1,94 @@
+import './LanguageSelector.css'
+import { useState } from 'react'
+
+function LanguageSelector({ onSelect }) {
+  const [username, setUsername] = useState('')
+  const [error, setError] = useState('')
+  const [selectedLanguage, setSelectedLanguage] = useState('en')
+
+  const startWith = (lang) => {
+    if (!username.trim()) {
+      setError(lang === 'zh' ? '请输入用户名' : 'Please enter a username')
+      return
+    }
+    onSelect({ language: lang, username: username.trim() })
+  }
+
+  const handleLanguageClick = (lang) => {
+    setSelectedLanguage(lang)
+    setError('')
+  }
+
+  const handleInputKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+    }
+  }
+
+  const handleStartButtonClick = () => {
+    startWith(selectedLanguage)
+  }
+
+  const subtitleLines = selectedLanguage === 'zh'
+    ? ['这是一个AI辅助教育平台的研究原型。', '收集的数据仅供研究使用，感谢你的测试体验与反馈！']
+    : ['This is a research prototype for an AI-assisted learning platform.', 'Thanks for testing and sharing your feedback!']
+
+  const hintText = selectedLanguage === 'zh'
+    ? '输入昵称，并选择测试语言即可开始体验。'
+    : 'Enter your nickname, and choose a language to begin.'
+
+  return (
+    <div className="language-selector">
+      <div className="language-selector-content">
+        <h1>Stoa </h1>
+        <p className="language-selector-subtitle">
+          {subtitleLines.map((line, index) => (
+            <span key={index}>
+              {line}
+              {index !== subtitleLines.length - 1 && <br />}
+            </span>
+          ))}
+        </p>
+        <div className="language-buttons">
+          <button
+            type="button"
+            onClick={() => handleLanguageClick('zh')}
+            className={`lang-btn ${selectedLanguage === 'zh' ? 'active' : ''}`}
+          >
+            中文
+          </button>
+          <button
+            type="button"
+            onClick={() => handleLanguageClick('en')}
+            className={`lang-btn ${selectedLanguage === 'en' ? 'active' : ''}`}
+          >
+            English
+          </button> 
+        </div>
+        <div className="language-form">
+          <p className="language-selector-hint">{hintText}</p>
+          <input
+            className="name-input"
+            type="text"
+            placeholder="昵称 / player name"
+            value={username}
+            onKeyDown={handleInputKeyDown}
+            onChange={(e) => { setUsername(e.target.value); setError('') }}
+          />
+          <button
+            type="button"
+            className="start-button"
+            onClick={handleStartButtonClick}
+            disabled={!username.trim()}
+          >
+            {selectedLanguage === 'zh' ? '进入游戏' : 'Enter Game'}
+          </button>
+          {error && <div className="name-error">{error}</div>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default LanguageSelector
+

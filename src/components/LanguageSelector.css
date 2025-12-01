@@ -1,0 +1,132 @@
+.language-selector {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-image: url('/6.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.language-selector-content {
+  text-align: center;
+  background: rgba(236, 236, 236, 0.848);
+  padding: 3rem;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.language-selector-content h1 {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.language-selector-subtitle {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #444;
+  margin: 0 auto 1.8rem auto;
+  text-align: center;
+  max-width: 420px;
+  white-space: pre-line;
+}
+
+.language-selector-hint {
+  margin: 0 auto 1rem auto;
+  color: #777;
+  font-size: 0.95rem;
+  max-width: 420px;
+}
+
+.language-selector-content h2 {
+  font-size: 1.5rem;
+  margin-bottom: 2rem;
+  color: #666;
+  font-weight: normal;
+}
+
+.language-buttons {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  margin: 0.2rem auto 1rem auto;
+}
+
+.lang-btn {
+  padding: 0.5rem 2rem;
+  font-size: 1.5rem;
+  border: 3px solid #6b4f37; /* brown */
+  border-radius: 0; /* square corners */
+  background: #ffffff;
+  color: #2b2b2b;
+  cursor: pointer;
+  box-shadow: 4px 4px 0 #4a3626; /* right + bottom shadow */
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.lang-btn:hover {
+  transform: translateY(-1px);
+}
+
+.lang-btn:active {
+  transform: translateY(0);
+  box-shadow: 2px 2px 0 #4a3626;
+}
+
+.lang-btn.active {
+  background: #f4e4cd;
+  border-color: #b67a3d;
+  color: #2b2b2b;
+}
+
+.name-input {
+  width: 100%;
+  max-width: 420px;
+  padding: 0.9rem 1rem;
+  border: 3px solid #6b4f37;
+  border-radius: 0;
+  background: #ffffff;
+  font-size: 1.1 rem;
+  margin: 0.5rem auto;
+  display: block;
+}
+
+.language-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* gap: 0.5rem; */
+}
+
+.start-button {
+  width: 100%;
+  max-width: 420px;
+  padding: 0.9rem 1rem;
+  border: 3px solid #6b4f37;
+  border-radius: 0;
+  background: #f4e4cd;
+  color: #2b2b2b;
+  font-size: 1.1rem;
+  cursor: pointer;
+  box-shadow: 4px 4px 0 #4a3626;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.start-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.start-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.name-error {
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+  margin-bottom: 0.5rem;
+}
+
