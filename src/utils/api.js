@@ -63,20 +63,16 @@ export const ROLE_PROMPTS = {
         '',
         '你的职责：',
         '1. 仔细阅读对话历史，理解学生已经学习的内容和讨论的主题。',
-        `2. 基于对话历史，先在心里构思出一个本层级的“标准答案”，再据此设计一个${levelLabel}层级的问题。问题本身必须：`,
+        `2. 基于对话历史，设计一个${levelLabel}层级的问题。问题本身必须：`,
         '   - 使用该层级的提问动词',
-        '   - 与对话内容相关,如果对话中缺少此层级的内容可以适当拓展后提问',
+        '   - 与对话内容相关，如果对话中缺少此层级的内容可以适当拓展后提问',
         '   - 提供可访问的网页链接作为证据，格式：`[资料名称](https://example.com)`',
-        '3. 输出时请遵循两部分结构：',
-        `   - 先用自然语言简要说明出题依据、给出必要的 Markdown 链接及题目本身；说明和题目句子本身都不要出现“根据/基于以上对话”之类前缀，而是直接陈述问题；`,
-        '   - 在最后额外输出一段 **JSON**，格式严格为：',
-        '     ```json',
-        '     { "question": "这里是最终给学生看到的考题（纯文本，不含编号，也不要包含“根据我们对话”之类前缀）", "standard_answer": "这里是基于对话历史整理出的参考标准答案，包含关键知识点与要点句子" }',
-        '     ```',
-        '   其中 standard_answer 要尽量覆盖本题预期考察的所有关键知识点，语言简洁但信息完整。',
-        '4. 所有 Markdown 链接只能出现在前面的自然语言说明部分，JSON 中的 question 和 standard_answer 字段必须是纯文本，不允许包含任何链接或 Markdown 标记。',
-        '5. 保持专业且鼓励的语气，每次输出不超过 3 段自然语言说明。',
-        '6. 严格按照当前层级出题，不要跳过或改变层级顺序。'
+        '3. 直接输出你的问题，包括：',
+        '   - 可以简要说明出题依据（可选）',
+        '   - 提供必要的 Markdown 链接作为参考',
+        '   - 直接陈述问题本身，不要出现"根据/基于以上对话"之类前缀',
+        '4. 保持专业且鼓励的语气，可以包含链接和格式化的内容。',
+        '5. 严格按照当前层级出题，不要跳过或改变层级顺序。'
       ].join('\n')
     },
     en: (currentLevel) => {
@@ -111,7 +107,7 @@ export const ROLE_PROMPTS = {
       const levelLabel = getBloomLabel(currentLevel, 'en')
       
       return [
-        'You are the Examining Agent who runs Bloom\'s six-level assessments. You will receive the complete conversation history between the student and teacher/peer, and must design test questions based on this conversation content.',
+        'You are the Examiner who runs Bloom\'s six-level assessments. You will receive the complete conversation history between the student and teacher/peer, and must design test questions based on this conversation content.',
         '',
         `**Current test level: ${levelLabel}**`,
         '',
@@ -121,20 +117,16 @@ export const ROLE_PROMPTS = {
         '',
         'Your responsibilities:',
         '1. Carefully read the conversation history to understand what the student has learned and the topics discussed.',
-        `2. Based on the conversation history, first mentally construct a reference "standard answer" for this level, and then design a ${levelLabel} level question accordingly. The question itself must:`,
+        `2. Based on the conversation history, design a ${levelLabel} level question. The question itself must:`,
         '   - Use question verbs for this level',
         '   - Be related to the conversation content',
         '   - Provide an accessible web link as evidence, format: `[Reference name](https://example.com)`',
-        '3. Structure your output in two parts:',
-        `   - First, use natural language to briefly explain your rationale, include necessary Markdown links, and present the question itself; in the explanation you may mention the previous dialogue, but the question sentence itself should not contain phrases like "based on our dialogue above" or "according to the discussion above"—just state the question directly;`,
-        '   - Then append a **JSON** block at the end, with the exact format:',
-        '     ```json',
-        '     { "question": "This is the final question text shown to the student (plain text, no numbering, without phrases like \\"based on our conversation\\" at the beginning).", "standard_answer": "This is the reference standard answer based on the dialogue, listing all key knowledge points and expected ideas." }',
-        '     ```',
-        '   The standard_answer should cover all key knowledge points expected for this question, concise but complete.',
-        '4. All Markdown links must appear only in the natural-language explanation part; the JSON fields \"question\" and \"standard_answer\" must be plain text without any links or Markdown formatting.',
-        '5. Keep the tone professional yet motivating, with responses under three short paragraphs.',
-        '6. Strictly follow the current level, do not skip or change the level order.'
+        '3. Directly output your question, including:',
+        '   - Optional brief explanation of your rationale',
+        '   - Necessary Markdown links as references',
+        '   - The question itself, without phrases like "based on our dialogue above" or "according to the discussion above"',
+        '4. Keep the tone professional yet motivating. You can include links and formatted content.',
+        '5. Strictly follow the current level, do not skip or change the level order.'
       ].join('\n')
     }
   },
@@ -324,33 +316,59 @@ const EVALUATOR_PROMPT_BUILDERS = {
     // 评估者A - 严格的教育标准评估专家
     ({ question, answer, taskLevelLabel, taskLevel }) => {
       const levelCriteria = {
-        remember: '精确回忆事实、术语、基础概念的能力',
-        understand: '解释、总结、推断和比较概念的能力',
-        apply: '在新情境中运用知识解决问题的能力',
-        analyze: '分解材料、识别关系和组织结构的能力',
-        evaluate: '基于标准做出判断和批判性评价的能力',
-        create: '整合元素形成新颖连贯的整体或提出新方案的能力'
+        remember: `精确回忆事实、术语、基础概念的能力
+标准答案应包含：所有关键事实、精确术语、核心概念定义
+评分：9-10分(准确无误) 7-8分(大部分正确) 5-6分(基本框架有错误) 3-4分(少量正确) 1-2分(几乎无法回忆) 0分(完全无关)`,
+
+        understand: `解释、总结、推断和比较概念的能力
+标准答案应包含：概念精确定义、关键特征解释、与其他概念的比较/联系
+评分：9-10分(解释深入全面) 7-8分(基本正确深度有限) 5-6分(部分理解有误解) 3-4分(理解表面化) 1-2分(几乎没有理解) 0分(完全无关)`,
+
+        apply: `在新情境中运用知识解决问题的能力
+标准答案应包含：正确的应用步骤、合适的策略选择、情境适应性调整
+评分：9-10分(正确应用适应性强) 7-8分(基本正确缺乏调整) 5-6分(方向正确过程错误) 3-4分(尝试但偏离) 1-2分(几乎没有应用) 0分(完全无关)`,
+
+        analyze: `分解材料、识别关系和组织结构的能力
+标准答案应包含：系统分解、关系识别、组织结构分析、因果推断
+评分：9-10分(分析系统逻辑严密) 7-8分(基本框架深度不足) 5-6分(分析零散逻辑跳跃) 3-4分(表面分析) 1-2分(几乎没有分析) 0分(完全无关)`,
+
+        evaluate: `基于标准做出判断和批判性评价的能力
+标准答案应包含：明确的标准/准则、证据权衡、充分论证、反思视角
+评分：9-10分(标准明确论证充分) 7-8分(基本判断深度不足) 5-6分(判断主观论证薄弱) 3-4分(仅个人意见) 1-2分(几乎没有评价) 0分(完全无关)`,
+
+        create: `整合元素形成新颖连贯的整体或提出新方案的能力
+标准答案应包含：新颖构思、完整结构、元素整合、实用价值
+评分：9-10分(高度原创结构完整) 7-8分(有创新结构合理) 5-6分(创新有限结构松散) 3-4分(简单重组) 1-2分(几乎没有创造) 0分(完全无关)`
       }
 
-      return `作为严格的教育标准评估专家，请基于Bloom分类学的精确标准进行评估。
+      const criteria = levelCriteria[taskLevel] || levelCriteria.remember
 
-评估任务：${taskLevelLabel}层级（${levelCriteria[taskLevel]})
+      return `作为严格的教育标准评估专家，请基于Bloom分类学的精确标准进行客观评估。
 
-问题："${question}"
+## 当前评估层级：${taskLevelLabel}
 
-回答："${answer}"
+${criteria}
 
-评估要求：
+## 评估材料
 
-1. 严格按照${taskLevelLabel}层级的核心能力要求进行评分（0-10分）
+【问题】：${question}
+【学生回答】：${answer}
 
-2. 评分必须基于客观证据，不考虑学生潜力或努力程度
+## 评估流程
 
-3. 反馈需明确指出回答是否符合该层级的认知要求，提问时避免提及到可能的答案或者相关词汇
+1. **生成标准答案**：基于问题内容和${taskLevelLabel}层级要求，在心中生成标准答案（涵盖所有关键知识点和能力表现）
+2. **对比评估**：将学生回答与标准答案对比，关注内容准确性、完整性、精确性、符合性
+3. **客观评分**：基于与标准答案的差距评分，不考虑潜力、努力或其他层级能力
 
-4. 如回答涉及其他层级能力，不作为加分依据
+## 输出格式
 
-请输出JSON：{ "score": 数字, "feedback": "具体的技术性反馈" }`
+请输出JSON：
+{
+  "score": 数字,
+  "feedback": "客观技术性反馈，说明学生回答与${taskLevelLabel}层级要求的符合程度",
+  "strengths": "回答中的优势方面（如有）",
+  "gaps": "与理想回答的主要差距"
+}`
     },
 
     // 评估者B - 学生发展指导师
@@ -488,33 +506,59 @@ ${processGuide}
     // Evaluator A - Strict Educational Standards Expert
     ({ question, answer, taskLevelLabel, taskLevel }) => {
       const levelCriteria = {
-        remember: 'Ability to accurately recall facts, terms, and basic concepts',
-        understand: 'Ability to explain, summarize, infer, and compare concepts',
-        apply: 'Ability to apply knowledge to solve problems in new situations',
-        analyze: 'Ability to break down materials, identify relationships, and organize structures',
-        evaluate: 'Ability to make judgments and critical evaluations based on criteria',
-        create: 'Ability to integrate elements into novel coherent wholes or propose new solutions'
+        remember: `Ability to accurately recall facts, terms, and basic concepts
+Standard answer should include: All key facts, precise terms, core concept definitions
+Scoring: 9-10(accurate and complete) 7-8(mostly correct) 5-6(basic framework with errors) 3-4(few correct) 1-2(almost unable to recall) 0(completely irrelevant)`,
+
+        understand: `Ability to explain, summarize, infer, and compare concepts
+Standard answer should include: Precise concept definition, key feature explanation, comparison/connections with other concepts
+Scoring: 9-10(deep comprehensive explanation) 7-8(basically correct but limited depth) 5-6(partial understanding with misconceptions) 3-4(superficial understanding) 1-2(almost no understanding) 0(completely irrelevant)`,
+
+        apply: `Ability to apply knowledge to solve problems in new situations
+Standard answer should include: Correct application steps, appropriate strategy selection, situational adaptation
+Scoring: 9-10(correct application with strong adaptability) 7-8(basically correct but lacks adaptation) 5-6(correct direction but process errors) 3-4(attempted but deviated) 1-2(almost no application) 0(completely irrelevant)`,
+
+        analyze: `Ability to break down materials, identify relationships, and organize structures
+Standard answer should include: Systematic decomposition, relationship identification, structural analysis, causal inference
+Scoring: 9-10(systematic analysis with rigorous logic) 7-8(basic framework but insufficient depth) 5-6(scattered analysis with logical leaps) 3-4(surface analysis) 1-2(almost no analysis) 0(completely irrelevant)`,
+
+        evaluate: `Ability to make judgments and critical evaluations based on criteria
+Standard answer should include: Clear standards/criteria, evidence weighing, sufficient argumentation, reflective perspective
+Scoring: 9-10(clear standards with sufficient argumentation) 7-8(basic judgment but insufficient depth) 5-6(subjective judgment with weak argumentation) 3-4(merely personal opinion) 1-2(almost no evaluation) 0(completely irrelevant)`,
+
+        create: `Ability to integrate elements into novel coherent wholes or propose new solutions
+Standard answer should include: Novel conception, complete structure, element integration, practical value
+Scoring: 9-10(highly original with complete structure) 7-8(innovative with reasonable structure) 5-6(limited innovation with loose structure) 3-4(simple recombination) 1-2(almost no creativity) 0(completely irrelevant)`
       }
+
+      const criteria = levelCriteria[taskLevel] || levelCriteria.remember
 
       return `As a strict educational standards assessment expert, please evaluate based on precise Bloom's taxonomy criteria.
 
-Evaluation Task: ${taskLevelLabel} level (${levelCriteria[taskLevel]})
+## Current Evaluation Level: ${taskLevelLabel}
+
+${criteria}
+
+## Evaluation Materials
 
 Question: "${question}"
+Student Answer: "${answer}"
 
-Answer: "${answer}"
+## Evaluation Process
 
-Evaluation Requirements:
+1. **Generate Standard Answer**: Based on question content and ${taskLevelLabel} level requirements, mentally generate a standard answer (covering all key knowledge points and expected competencies)
+2. **Compare Assessment**: Compare student answer with standard answer, focusing on content accuracy, completeness, precision, and compliance
+3. **Objective Scoring**: Score based on gap with standard answer, without considering potential, effort, or abilities at other levels
 
-1. Strictly score (0-10) based on the core competency requirements of the ${taskLevelLabel} level
+## Output Format
 
-2. Scoring must be based on objective evidence, not considering student potential or effort
-
-3. Feedback must clearly indicate whether the answer meets the cognitive requirements of this level
-
-4. If the answer involves other level abilities, do not use them as bonus points
-
-Please output JSON: { "score": number, "feedback": "specific technical feedback" }`
+Please output JSON:
+{
+  "score": number,
+  "feedback": "Objective technical feedback explaining how the student's answer meets the ${taskLevelLabel} level requirements",
+  "strengths": "Strengths in the answer (if any)",
+  "gaps": "Main gaps compared to ideal answer"
+}`
     },
 
     // Evaluator B - Student Development Mentor
@@ -675,7 +719,7 @@ export const callDeepSeekAPIWithRole = async (messages, role, language, currentL
   return callDeepSeekAPI(apiMessages)
 }
 
-export const evaluateAnswer = async (question, answer, taskLevel, language, standardAnswer = null) => {
+export const evaluateAnswer = async (question, answer, taskLevel, language) => {
   const promptBuilders = EVALUATOR_PROMPT_BUILDERS[language] || EVALUATOR_PROMPT_BUILDERS.en
   const taskLevelLabel = getBloomLabel(taskLevel, language)
   const evaluatorResults = []
@@ -683,8 +727,8 @@ export const evaluateAnswer = async (question, answer, taskLevel, language, stan
   // 使用三个不同的评估器进行并行评估
   for (let i = 0; i < promptBuilders.length; i++) {
     const buildPrompt = promptBuilders[i]
-    // 将标准答案一并传入提示词构造器（部分评估者会使用）
-    const promptContent = buildPrompt({ question, answer, taskLevelLabel, taskLevel, standardAnswer })
+    // 评估者A会自己生成标准答案，其他评估者不需要标准答案
+    const promptContent = buildPrompt({ question, answer, taskLevelLabel, taskLevel })
 
     try {
       // 通过后端代理调用 DeepSeek，避免在前端暴露 API Key

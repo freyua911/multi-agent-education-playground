@@ -50,7 +50,7 @@
   flex-direction: column;
   overflow: hidden;
   height: 100%;
-  background: rgba(255, 255, 255, 0.85) !important;
+  background: rgba(255, 255, 255, 0.9) ;
 }
 
 .pretest-panel-left,

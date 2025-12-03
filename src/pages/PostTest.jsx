@@ -199,8 +199,8 @@ function PostTest({ language, username }) {
                 { 
                   id: 'q8', 
                   text: isZh 
-                    ? '"考官"在每一个层级（例如，记忆、理解、应用）提出的问题都合理并且符合我的学习诉求与方向。' 
-                    : 'The questions from the "Examiner" made me aware of the levels (e.g., Remembering, Understanding, Applying) where I need more effort.' 
+                    ? '"考官"在每一个层级（例如，记忆、理解、应用）提出的问题都合理并且基于我的学习情况，符合我的学习诉求与方向。' 
+                    : 'The questions from the "Examiner" made me aware of the levels (e.g., Remembering, Understanding, Applying) where I need more effort, based on my learning situation.' 
                 },
                 { 
                   id: 'q9', 

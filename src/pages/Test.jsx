@@ -51,8 +51,6 @@ function Test({ language, username }) {
   // 使用 useRef 来同步存储 previousQuestion，避免异步更新问题
   const previousQuestionRef = useRef(null)
   const previousTaskLevelRef = useRef(null)
-  // 保存当前考题的参考标准答案，仅供评估者使用，不在界面中显示
-  const standardAnswerRef = useRef(null)
   // 当前测试进度level，初始值为1（remember）
   const [currentTestLevel, setCurrentTestLevel] = useState('remember')
   // 当前这一轮评估已经完成，等待用户选择“再来一个问题 / 进入下一层级”
@@ -262,56 +260,22 @@ function Test({ language, username }) {
       : `Task "${taskName}" average score ${evaluation.score.toFixed(1)}/10.`
   }
 
-  // 解析考官输出：拆分为用于展示的问题文本、用于评估的纯问题文本和标准答案
+  // 解析考官输出：直接返回完整文本，考官可以包含链接和所有格式化内容
   const parseExaminerOutput = (rawMessage) => {
     if (!rawMessage || typeof rawMessage !== 'string') {
       return {
         displayText: '',
-        questionText: '',
-        standardAnswer: null
+        questionText: ''
       }
     }
-    let displayText = rawMessage.trim()
-    let questionText = ''
-    let standardAnswer = null
-
-    try {
-      let jsonSource = null
-
-      // 优先匹配 ```json ... ``` 代码块，提取其中的 JSON
-      const fencedMatch = rawMessage.match(/```json([\s\S]*?)```/i)
-      if (fencedMatch && fencedMatch[1]) {
-        jsonSource = fencedMatch[1]
-        // 移除整个代码块，避免在界面显示
-        displayText = displayText.replace(fencedMatch[0], '').trim()
-      } else {
-        // 回退：匹配第一个看起来像 JSON 的大括号片段
-        const jsonMatch = rawMessage.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-          jsonSource = jsonMatch[0]
-          displayText = displayText.replace(jsonMatch[0], '').trim()
-        }
-      }
-
-      if (jsonSource) {
-        const obj = JSON.parse(jsonSource)
-        if (obj.question) {
-          questionText = String(obj.question).trim()
-        }
-        if (obj.standard_answer) {
-          standardAnswer = String(obj.standard_answer).trim()
-        }
-      }
-    } catch (error) {
-      console.log('parseExaminerOutput: 解析考官JSON失败，退回使用完整文本', error)
-      displayText = rawMessage.trim()
-      questionText = ''
-    }
+    // 直接返回完整文本，考官输出包含所有内容（包括链接）
+    const displayText = rawMessage.trim()
+    // 问题文本也使用完整输出（用于记录）
+    const questionText = displayText
 
     return {
       displayText,
-      questionText,
-      standardAnswer
+      questionText
     }
   }
 
@@ -353,12 +317,10 @@ function Test({ language, username }) {
       ]
 
       const response = await callDeepSeekAPIWithRole(apiMessages, 'examiner', language, levelToUse)
-      const { displayText, questionText, standardAnswer } = parseExaminerOutput(response)
-      // 记录当前标准答案，仅供评估者使用
-      standardAnswerRef.current = standardAnswer || null
+      const { displayText, questionText } = parseExaminerOutput(response)
       const assistantMessage = {
         role: 'assistant',
-        // 只在界面上展示自然语言说明 + 链接 + 题目文本，不展示标准答案 JSON
+        // 展示完整的考官输出（包括链接和所有内容）
         content: displayText || questionText || response,
         timestamp: new Date().toISOString()
       }
@@ -374,13 +336,13 @@ function Test({ language, username }) {
       // 添加到统一日志
       addToUnifiedLog({
         role: 'examiner',
-        // 统一日志中保留完整原始响应（包含标准答案JSON），便于研究与导出
+        // 统一日志中保留完整原始响应（包含链接和所有内容），便于研究与导出
         content: response,
         agentType: 'examiner',
         speaker: examinerName
       })
 
-      // 记录当前问题（为下一次用户回答做准备）——使用纯问题文本，避免带上JSON
+      // 记录当前问题（为下一次用户回答做准备）
       detectQuestionFromAssistant(questionText || displayText || response)
       // 进入“等待用户回答本题”的状态
       setAwaitingNextAction(false)
@@ -491,8 +453,7 @@ function Test({ language, username }) {
           questionToEvaluate,
           userMessage,
           currentTestLevel, // 使用currentTestLevel作为评估标准
-          language,
-          standardAnswerRef.current || null
+          language
         )
         console.log('评估结果:', evaluation)
 
@@ -663,8 +624,8 @@ function Test({ language, username }) {
         setEndConfirmPending(false)
       }, 5000) // Reset after 5 seconds
       alert(language === 'zh'
-        ? '再次点击"结束"即可导出并结束本次学习。'
-        : 'Click "End" again to export and finish this session.')
+        ? '结束后所有的对话和测试记录都会被清空哦。再次点击"结束"即可结束本次学习。'
+        : 'After clicking "End", all conversation and test records will be cleared. Click "End" again to finish this session.')
       return
     }
 
