@@ -316,29 +316,29 @@ const EVALUATOR_PROMPT_BUILDERS = {
     // 评估者A - 严格的教育标准评估专家
     ({ question, answer, taskLevelLabel, taskLevel }) => {
       const levelCriteria = {
-        remember: `精确回忆事实、术语、基础概念的能力
-标准答案应包含：所有关键事实、精确术语、核心概念定义
-评分：9-10分(准确无误) 7-8分(大部分正确) 5-6分(基本框架有错误) 3-4分(少量正确) 1-2分(几乎无法回忆) 0分(完全无关)`,
+        remember: `【记忆的准确性和组织性】
+评估关注：知识点的准确性、完整性、信息组织、提取效率、知识固化程度
+评分：8-10分(准确完整系统) 6-7分(基本准确有组织) 4-5分(有错误或遗漏) 0-3分(严重错误)`,
 
-        understand: `解释、总结、推断和比较概念的能力
-标准答案应包含：概念精确定义、关键特征解释、与其他概念的比较/联系
-评分：9-10分(解释深入全面) 7-8分(基本正确深度有限) 5-6分(部分理解有误解) 3-4分(理解表面化) 1-2分(几乎没有理解) 0分(完全无关)`,
+        understand: `【概念理解和意义建构】
+评估关注：概念转换能力、新旧知识联系、举例说明、比较分析、解释深度
+评分：8-10分(深度理解多角度) 6-7分(基本理解) 4-5分(部分理解有误解) 0-3分(基本不理解)`,
 
-        apply: `在新情境中运用知识解决问题的能力
-标准答案应包含：正确的应用步骤、合适的策略选择、情境适应性调整
-评分：9-10分(正确应用适应性强) 7-8分(基本正确缺乏调整) 5-6分(方向正确过程错误) 3-4分(尝试但偏离) 1-2分(几乎没有应用) 0分(完全无关)`,
+        apply: `【知识迁移和实践应用】
+评估关注：情境识别、策略选择、适应性调整、执行质量、结果验证
+评分：8-10分(灵活迁移创造性) 6-7分(正确应用基本方法) 4-5分(应用有困难) 0-3分(无法应用)`,
 
-        analyze: `分解材料、识别关系和组织结构的能力
-标准答案应包含：系统分解、关系识别、组织结构分析、因果推断
-评分：9-10分(分析系统逻辑严密) 7-8分(基本框架深度不足) 5-6分(分析零散逻辑跳跃) 3-4分(表面分析) 1-2分(几乎没有分析) 0分(完全无关)`,
+        analyze: `【思维的系统性和逻辑性】
+评估关注：分解能力、关系识别、组织逻辑、证据意识、结构把握
+评分：8-10分(系统深入逻辑严密) 6-7分(基本分析框架) 4-5分(分析零散逻辑跳跃) 0-3分(缺乏分析思维)`,
 
-        evaluate: `基于标准做出判断和批判性评价的能力
-标准答案应包含：明确的标准/准则、证据权衡、充分论证、反思视角
-评分：9-10分(标准明确论证充分) 7-8分(基本判断深度不足) 5-6分(判断主观论证薄弱) 3-4分(仅个人意见) 1-2分(几乎没有评价) 0分(完全无关)`,
+        evaluate: `【批判思维和判断力】
+评估关注：标准明确性、证据权衡、视角多元、论证有力、自我反思
+评分：8-10分(批判深刻论证充分) 6-7分(合理判断) 4-5分(判断主观) 0-3分(武断判断)`,
 
-        create: `整合元素形成新颖连贯的整体或提出新方案的能力
-标准答案应包含：新颖构思、完整结构、元素整合、实用价值
-评分：9-10分(高度原创结构完整) 7-8分(有创新结构合理) 5-6分(创新有限结构松散) 3-4分(简单重组) 1-2分(几乎没有创造) 0分(完全无关)`
+        create: `【创新思维和综合能力】
+评估关注：新颖性、整合能力、规划能力、实用价值、表达呈现
+评分：8-10分(高度原创价值显著) 6-7分(有一定新意) 4-5分(创新有限) 0-3分(缺乏创新)`
       }
 
       const criteria = levelCriteria[taskLevel] || levelCriteria.remember
@@ -354,11 +354,9 @@ ${criteria}
 【问题】：${question}
 【学生回答】：${answer}
 
-## 评估流程
+## 评估要求
 
-1. **生成标准答案**：基于问题内容和${taskLevelLabel}层级要求，在心中生成标准答案（涵盖所有关键知识点和能力表现）
-2. **对比评估**：将学生回答与标准答案对比，关注内容准确性、完整性、精确性、符合性
-3. **客观评分**：基于与标准答案的差距评分，不考虑潜力、努力或其他层级能力
+请严格按照上述评估关注点和评分标准进行客观评分（0-10分），不考虑学生潜力、努力程度或其他层级能力。
 
 ## 输出格式
 
@@ -506,29 +504,29 @@ ${processGuide}
     // Evaluator A - Strict Educational Standards Expert
     ({ question, answer, taskLevelLabel, taskLevel }) => {
       const levelCriteria = {
-        remember: `Ability to accurately recall facts, terms, and basic concepts
-Standard answer should include: All key facts, precise terms, core concept definitions
-Scoring: 9-10(accurate and complete) 7-8(mostly correct) 5-6(basic framework with errors) 3-4(few correct) 1-2(almost unable to recall) 0(completely irrelevant)`,
+        remember: `【Accuracy and Organization of Memory】
+Evaluation Focus: Accuracy of knowledge points, completeness, information organization, retrieval efficiency, knowledge solidification
+Scoring: 8-10(accurate and systematic) 6-7(basically accurate with organization) 4-5(errors or omissions) 0-3(severe errors)`,
 
-        understand: `Ability to explain, summarize, infer, and compare concepts
-Standard answer should include: Precise concept definition, key feature explanation, comparison/connections with other concepts
-Scoring: 9-10(deep comprehensive explanation) 7-8(basically correct but limited depth) 5-6(partial understanding with misconceptions) 3-4(superficial understanding) 1-2(almost no understanding) 0(completely irrelevant)`,
+        understand: `【Conceptual Understanding and Meaning Construction】
+Evaluation Focus: Concept transformation ability, connections between old and new knowledge, examples, comparison analysis, explanation depth
+Scoring: 8-10(deep understanding from multiple angles) 6-7(basic understanding) 4-5(partial understanding with misconceptions) 0-3(little understanding)`,
 
-        apply: `Ability to apply knowledge to solve problems in new situations
-Standard answer should include: Correct application steps, appropriate strategy selection, situational adaptation
-Scoring: 9-10(correct application with strong adaptability) 7-8(basically correct but lacks adaptation) 5-6(correct direction but process errors) 3-4(attempted but deviated) 1-2(almost no application) 0(completely irrelevant)`,
+        apply: `【Knowledge Transfer and Practical Application】
+Evaluation Focus: Situation recognition, strategy selection, adaptive adjustment, execution quality, result verification
+Scoring: 8-10(flexible transfer and creativity) 6-7(correct application of basic methods) 4-5(difficulty in application) 0-3(unable to apply)`,
 
-        analyze: `Ability to break down materials, identify relationships, and organize structures
-Standard answer should include: Systematic decomposition, relationship identification, structural analysis, causal inference
-Scoring: 9-10(systematic analysis with rigorous logic) 7-8(basic framework but insufficient depth) 5-6(scattered analysis with logical leaps) 3-4(surface analysis) 1-2(almost no analysis) 0(completely irrelevant)`,
+        analyze: `【Systematic and Logical Thinking】
+Evaluation Focus: Decomposition ability, relationship identification, organizational logic, evidence awareness, structural grasp
+Scoring: 8-10(systematic and logically rigorous) 6-7(basic analytical framework) 4-5(scattered analysis with logical leaps) 0-3(lacks analytical thinking)`,
 
-        evaluate: `Ability to make judgments and critical evaluations based on criteria
-Standard answer should include: Clear standards/criteria, evidence weighing, sufficient argumentation, reflective perspective
-Scoring: 9-10(clear standards with sufficient argumentation) 7-8(basic judgment but insufficient depth) 5-6(subjective judgment with weak argumentation) 3-4(merely personal opinion) 1-2(almost no evaluation) 0(completely irrelevant)`,
+        evaluate: `【Critical Thinking and Judgment】
+Evaluation Focus: Clarity of standards, evidence weighing, multiple perspectives, strong argumentation, self-reflection
+Scoring: 8-10(profound critique with sufficient argumentation) 6-7(reasonable judgment) 4-5(subjective judgment) 0-3(arbitrary judgment)`,
 
-        create: `Ability to integrate elements into novel coherent wholes or propose new solutions
-Standard answer should include: Novel conception, complete structure, element integration, practical value
-Scoring: 9-10(highly original with complete structure) 7-8(innovative with reasonable structure) 5-6(limited innovation with loose structure) 3-4(simple recombination) 1-2(almost no creativity) 0(completely irrelevant)`
+        create: `【Innovative Thinking and Synthesis Ability】
+Evaluation Focus: Novelty, integration ability, planning ability, practical value, expression
+Scoring: 8-10(highly original with significant value) 6-7(some innovation) 4-5(limited innovation) 0-3(lacks innovation)`
       }
 
       const criteria = levelCriteria[taskLevel] || levelCriteria.remember
@@ -544,11 +542,9 @@ ${criteria}
 Question: "${question}"
 Student Answer: "${answer}"
 
-## Evaluation Process
+## Evaluation Requirements
 
-1. **Generate Standard Answer**: Based on question content and ${taskLevelLabel} level requirements, mentally generate a standard answer (covering all key knowledge points and expected competencies)
-2. **Compare Assessment**: Compare student answer with standard answer, focusing on content accuracy, completeness, precision, and compliance
-3. **Objective Scoring**: Score based on gap with standard answer, without considering potential, effort, or abilities at other levels
+Please strictly follow the above evaluation focus and scoring standards for objective scoring (0-10 points), without considering student potential, effort, or abilities at other levels.
 
 ## Output Format
 
