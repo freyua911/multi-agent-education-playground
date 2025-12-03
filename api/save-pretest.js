@@ -10,11 +10,31 @@ export default async function handler(req, res) {
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseKey) {
-    res.status(500).json({ error: 'Supabase configuration is missing' })
+    console.error('Missing Supabase config:', {
+      hasUrl: !!supabaseUrl,
+      hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      hasAnonKey: !!process.env.SUPABASE_ANON_KEY
+    })
+    res.status(500).json({ 
+      error: 'Supabase configuration is missing',
+      detail: 'Please check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables'
+    })
     return
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey)
+  
+  // 尝试检查表是否存在（仅用于诊断）
+  if (process.env.NODE_ENV !== 'production') {
+    const { error: tableCheckError } = await supabase
+      .from('pretest_responses')
+      .select('id')
+      .limit(1)
+    
+    if (tableCheckError && tableCheckError.message.includes('schema cache')) {
+      console.error('Table does not exist:', tableCheckError)
+    }
+  }
 
   try {
     const { username, language, responses } = req.body || {}
@@ -36,8 +56,25 @@ export default async function handler(req, res) {
       .single()
 
     if (error) {
-      console.error('Supabase insert error:', error)
-      res.status(500).json({ error: 'Failed to save pretest', detail: error.message })
+      console.error('Supabase insert error:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      })
+      
+      // 提供更友好的错误信息
+      let errorDetail = error.message
+      if (error.message.includes('schema cache')) {
+        errorDetail = 'Table "pretest_responses" does not exist. Please run the SQL script in Supabase Dashboard to create the table. See SUPABASE_SETUP.md for instructions.'
+      }
+      
+      res.status(500).json({ 
+        error: 'Failed to save pretest', 
+        detail: errorDetail,
+        code: error.code,
+        hint: 'Check SUPABASE_SETUP.md for table creation instructions'
+      })
       return
     }
 

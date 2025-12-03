@@ -65,7 +65,7 @@ function Test({ language, username }) {
   const feedbackEndRef = useRef(null)
   const navigate = useNavigate()
 
-  const examinerName = language === 'zh' ? '考官 Agent' : 'Examiner Agent'
+  const examinerName = language === 'zh' ? '考官' : 'Examiner'
   const systemLabel = language === 'zh' ? '系统' : 'System'
   const evalLabel = language === 'zh' ? '评估' : 'Evaluation'
   const allTasksCompleted = tasks.every(task => task.completed)
@@ -689,8 +689,8 @@ function Test({ language, username }) {
           <h1>{language === 'zh' ? 'Bloom 分层测试' : 'Bloom-Level Testing'}</h1>
           <p>
             {language === 'zh'
-              ? '考官 agent 会根据你的回答依次推进六个层级，并由评估者打分。'
-              : 'The examiner agent guides you through Bloom’s six levels and relays evaluator feedback.'}
+              ? '考官会根据你的回答依次推进六个层级，并由评估者打分。'
+              : 'The examiner guides you through Bloom\'s six levels and relays evaluator feedback.'}
           </p>
         </div>
         <div className="test-top-actions">

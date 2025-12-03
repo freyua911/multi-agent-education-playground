@@ -13,11 +13,11 @@ function PreTest({ language, username }) {
     age: '',
     major: '',
     q3: '',
-    q11: '',
-    q12: '',
-    q13: '',
-    q14: '',
-    q15: '',
+    q4: '',
+    q5: '',
+    q6: '',
+    q7: '',
+    q8: '',
     q16: '',
     q17: ''
   })
@@ -38,11 +38,11 @@ function PreTest({ language, username }) {
       missingFields.push(isZh ? 'AI使用程度' : 'AI Usage')
     }
     
-    // 检查第四部分（Q11-Q15）
-    const section4Questions = ['q11', 'q12', 'q13', 'q14', 'q15']
-    const missingSection4 = section4Questions.filter(q => !form[q])
+    // 检查第二部分（Q4-Q8）
+    const section2Questions = ['q4', 'q5', 'q6', 'q7', 'q8']
+    const missingSection2 = section2Questions.filter(q => !form[q])
     
-    if (missingSection4.length > 0) {
+    if (missingSection2.length > 0) {
       missingFields.push(isZh ? '第二部分问题' : 'Section 2 Questions')
     }
     
@@ -87,7 +87,7 @@ function PreTest({ language, username }) {
   }
 
   return (
-    <div className="test-container pretest-container">
+    <div className={`test-container pretest-container ${!isZh ? 'lang-en' : ''}`} lang={language}>
       <header className="test-top-bar">
         <div>
           <h1>{isZh ? '前测问卷' : 'Pre-Test Questionnaire'}</h1>
@@ -221,31 +221,31 @@ function PreTest({ language, username }) {
 
               {[
                 { 
-                  id: 'q11', 
+                  id: 'q4', 
                   text: isZh 
                     ? '在我看来，AI已经可以在一定程度上替代传统的教学解释（例如，解释知识点）。' 
                     : 'In my view, AI can already, to some extent, replace traditional instructional explanations (e.g., explaining knowledge points).' 
                 },
                 { 
-                  id: 'q12', 
+                  id: 'q5', 
                   text: isZh 
                     ? '在我看来，AI更适合作为辅助工具，而不是完全替代人类教师。' 
                     : 'In my view, AI is better suited as an auxiliary tool rather than a complete replacement for human teachers.' 
                 },
                 { 
-                  id: 'q13', 
+                  id: 'q6', 
                   text: isZh 
                     ? '我目前认为AI可以为不同学生提供针对性的学习支持。' 
                     : 'I currently believe that AI can provide targeted learning support tailored to the needs of different students.' 
                 },
                 { 
-                  id: 'q14', 
+                  id: 'q7', 
                   text: isZh 
                     ? '我对"将AI用于教育和评估"总体上持开放态度。' 
                     : 'I am generally open-minded about "using AI for education and assessment".' 
                 },
                 { 
-                  id: 'q15', 
+                  id: 'q8', 
                   text: isZh 
                     ? '我对AI在教育中的风险和局限性有相对清晰的理解。' 
                     : 'I have a relatively clear understanding of the risks and limitations of AI in education.' 

@@ -6,3 +6,14 @@
   background-repeat: no-repeat;
 }
 
+/* 英文问卷答案字号调小一号，确保所有选项在同一行 */
+.posttest-container.lang-en .pretest-scale-option span {
+  font-size: 0.95rem !important;
+  white-space: nowrap;
+}
+
+.posttest-container.lang-en .pretest-scale-options {
+  flex-wrap: nowrap !important;
+  gap: 4px;
+}
+

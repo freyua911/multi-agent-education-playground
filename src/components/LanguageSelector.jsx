@@ -34,12 +34,12 @@ function LanguageSelector({ onSelect }) {
   }
 
   const subtitleLines = selectedLanguage === 'zh'
-    ? ['这是一个AI辅助教育平台的研究原型。', '收集的数据仅供研究使用，感谢你的测试体验与反馈！']
-    : ['This is a research prototype for an AI-assisted learning platform.', 'Thanks for testing and sharing your feedback!']
+    ? ['这是一个AI辅助教育平台的研究原型，这里会有不同的AI角色与你互动来共同完成你的学习目标。', '收集的数据仅供研究使用，感谢你的测试体验与反馈！']
+    : ['This is a research prototype for an AI-assisted learning platform, where different AI roles will interact with you to complete your learning goals together.', 'Data collected is for research purposes only. Thank you for your testing experience and feedback!']
 
   const hintText = selectedLanguage === 'zh'
-    ? '输入昵称，并选择测试语言即可开始体验。'
-    : 'Enter your nickname, and choose a language to begin.'
+    ? '输入昵称，并选择测试语言即可开始体验,在开始游戏前有个问卷需要请你填写，感谢～。'
+    : 'Enter your nickname and choose a language to begin. Please complete a questionnaire before starting the game. Thank you!'
 
   return (
     <div className="language-selector">
