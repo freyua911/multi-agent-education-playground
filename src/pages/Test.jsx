@@ -271,35 +271,41 @@ function Test({ language, username }) {
         standardAnswer: null
       }
     }
-    let trimmed = rawMessage.trim()
-    let displayText = trimmed
+    let displayText = rawMessage.trim()
     let questionText = ''
     let standardAnswer = null
 
     try {
-      // 先移除可能存在的 ```json ... ``` 代码块（包括其中的内容）
-      const fencedBlockRegex = /```json[\s\S]*?```/i
-      if (fencedBlockRegex.test(trimmed)) {
-        trimmed = trimmed.replace(fencedBlockRegex, '').trim()
+      let jsonSource = null
+
+      // 优先匹配 ```json ... ``` 代码块，提取其中的 JSON
+      const fencedMatch = rawMessage.match(/```json([\s\S]*?)```/i)
+      if (fencedMatch && fencedMatch[1]) {
+        jsonSource = fencedMatch[1]
+        // 移除整个代码块，避免在界面显示
+        displayText = displayText.replace(fencedMatch[0], '').trim()
+      } else {
+        // 回退：匹配第一个看起来像 JSON 的大括号片段
+        const jsonMatch = rawMessage.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          jsonSource = jsonMatch[0]
+          displayText = displayText.replace(jsonMatch[0], '').trim()
+        }
       }
 
-      // 尝试匹配输出中的 JSON（通常在末尾）
-      const jsonMatch = rawMessage.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        const obj = JSON.parse(jsonMatch[0])
+      if (jsonSource) {
+        const obj = JSON.parse(jsonSource)
         if (obj.question) {
           questionText = String(obj.question).trim()
         }
         if (obj.standard_answer) {
           standardAnswer = String(obj.standard_answer).trim()
         }
-        // 将 JSON 部分从展示文本中移除，只保留自然语言说明 + 链接 + 题目
-        displayText = trimmed.replace(jsonMatch[0], '').trim()
       }
     } catch (error) {
       console.log('parseExaminerOutput: 解析考官JSON失败，退回使用完整文本', error)
-      displayText = trimmed
-      questionText = trimmed
+      displayText = rawMessage.trim()
+      questionText = ''
     }
 
     return {
@@ -853,8 +859,8 @@ function Test({ language, username }) {
                       {entry.summary || entry.feedback}
                     </div>
 
-                    {/* 只有最新一条反馈，并且当前处于“等待用户选择下一步”时，才显示控制按钮 */}
-                    {isLatest && awaitingNextAction && !allTasksCompleted && (
+                    {/* 只有最新一条反馈时显示控制按钮，始终允许用户选择下一步（评估过程中按钮会被禁用） */}
+                    {isLatest && !allTasksCompleted && (
                       <div className="test-feedback-actions">
                         <button
                           type="button"

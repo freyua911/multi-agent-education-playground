@@ -6,12 +6,12 @@ function LanguageSelector({ onSelect }) {
   const [error, setError] = useState('')
   const [selectedLanguage, setSelectedLanguage] = useState('en')
 
-  const startWith = (lang) => {
+  const startWith = (lang, nextPath) => {
     if (!username.trim()) {
       setError(lang === 'zh' ? '请输入用户名' : 'Please enter a username')
       return
     }
-    onSelect({ language: lang, username: username.trim() })
+    onSelect({ language: lang, username: username.trim(), nextPath })
   }
 
   const handleLanguageClick = (lang) => {
@@ -26,7 +26,11 @@ function LanguageSelector({ onSelect }) {
   }
 
   const handleStartButtonClick = () => {
-    startWith(selectedLanguage)
+    startWith(selectedLanguage, '/game')
+  }
+
+  const handlePretestButtonClick = () => {
+    startWith(selectedLanguage, '/pretest')
   }
 
   const subtitleLines = selectedLanguage === 'zh'
@@ -40,7 +44,7 @@ function LanguageSelector({ onSelect }) {
   return (
     <div className="language-selector">
       <div className="language-selector-content">
-        <h1>Stoa </h1>
+        <h1>Stratux</h1>
         <p className="language-selector-subtitle">
           {subtitleLines.map((line, index) => (
             <span key={index}>
@@ -75,14 +79,24 @@ function LanguageSelector({ onSelect }) {
             onKeyDown={handleInputKeyDown}
             onChange={(e) => { setUsername(e.target.value); setError('') }}
           />
-          <button
-            type="button"
-            className="start-button"
-            onClick={handleStartButtonClick}
-            disabled={!username.trim()}
-          >
-            {selectedLanguage === 'zh' ? '进入游戏' : 'Enter Game'}
-          </button>
+          <div className="language-form-buttons">
+            <button
+              type="button"
+              className="start-button"
+              onClick={handleStartButtonClick}
+              disabled={!username.trim()}
+            >
+              {selectedLanguage === 'zh' ? '进入游戏' : 'Enter Game'}
+            </button>
+            <button
+              type="button"
+              className="start-button pretest-button"
+              onClick={handlePretestButtonClick}
+              disabled={!username.trim()}
+            >
+              {selectedLanguage === 'zh' ? '前测问卷' : 'Pre-Test'}
+            </button>
+          </div>
           {error && <div className="name-error">{error}</div>}
         </div>
       </div>

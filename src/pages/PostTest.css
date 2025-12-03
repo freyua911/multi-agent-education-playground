@@ -1,0 +1,8 @@
+/* 复用前测问卷的样式 */
+.posttest-container {
+  background-image: url('/8.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+

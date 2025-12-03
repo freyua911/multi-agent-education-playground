@@ -1,21 +1,25 @@
 import { useState } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import LanguageSelector from './components/LanguageSelector'
 import Game from './components/Game'
 import Library from './pages/Library'
 import MindMap from './pages/MindMap'
 import Test from './pages/Test'
 import Completion from './pages/Completion'
+import PreTest from './pages/PreTest'
+import PostTest from './pages/PostTest'
 import { resetTurnCount } from './utils/turnCounter'
 
 function App() {
   const [language, setLanguage] = useState(null)
   const [username, setUsername] = useState('')
+  const navigate = useNavigate()
 
-  const handleStart = ({ language: lang, username: name }) => {
+  const handleStart = ({ language: lang, username: name, nextPath }) => {
     resetTurnCount()
     setLanguage(lang)
     setUsername(name)
+    navigate(nextPath || '/game')
   }
 
   if (!language) {
@@ -29,6 +33,8 @@ function App() {
       <Route path="/library" element={<Library language={language} username={username} />} />
       <Route path="/mindmap" element={<MindMap language={language} username={username} />} />
       <Route path="/test" element={<Test language={language} username={username} />} />
+      <Route path="/pretest" element={<PreTest language={language} username={username} />} />
+      <Route path="/posttest" element={<PostTest language={language} username={username} />} />
       <Route path="/completion" element={<Completion language={language} username={username} />} />
     </Routes>
   )

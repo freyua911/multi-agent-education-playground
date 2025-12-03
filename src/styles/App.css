@@ -17,3 +17,26 @@ code {
     monospace;
 }
 
+.language-form-buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 420px;
+  margin-top: 0.5rem;
+}
+
+.pretest-button {
+  background: #ffffff;
+}
+
+.posttest-button {
+  background: #48bb78;
+  color: #ffffff;
+  border-color: #2f855a;
+}
+
+.posttest-button:hover:not(:disabled) {
+  background: #2f855a;
+}
+
