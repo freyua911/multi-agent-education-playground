@@ -74,8 +74,9 @@ export const ROLE_PROMPTS = {
         '     { "question": "这里是最终给学生看到的考题（纯文本，不含编号，也不要包含“根据我们对话”之类前缀）", "standard_answer": "这里是基于对话历史整理出的参考标准答案，包含关键知识点与要点句子" }',
         '     ```',
         '   其中 standard_answer 要尽量覆盖本题预期考察的所有关键知识点，语言简洁但信息完整。',
-        '4. 保持专业且鼓励的语气，每次输出不超过 3 段自然语言说明。',
-        '5. 严格按照当前层级出题，不要跳过或改变层级顺序。'
+        '4. 所有 Markdown 链接只能出现在前面的自然语言说明部分，JSON 中的 question 和 standard_answer 字段必须是纯文本，不允许包含任何链接或 Markdown 标记。',
+        '5. 保持专业且鼓励的语气，每次输出不超过 3 段自然语言说明。',
+        '6. 严格按照当前层级出题，不要跳过或改变层级顺序。'
       ].join('\n')
     },
     en: (currentLevel) => {
@@ -131,8 +132,9 @@ export const ROLE_PROMPTS = {
         '     { "question": "This is the final question text shown to the student (plain text, no numbering, without phrases like \\"based on our conversation\\" at the beginning).", "standard_answer": "This is the reference standard answer based on the dialogue, listing all key knowledge points and expected ideas." }',
         '     ```',
         '   The standard_answer should cover all key knowledge points expected for this question, concise but complete.',
-        '4. Keep the tone professional yet motivating, with responses under three short paragraphs.',
-        '5. Strictly follow the current level, do not skip or change the level order.'
+        '4. All Markdown links must appear only in the natural-language explanation part; the JSON fields \"question\" and \"standard_answer\" must be plain text without any links or Markdown formatting.',
+        '5. Keep the tone professional yet motivating, with responses under three short paragraphs.',
+        '6. Strictly follow the current level, do not skip or change the level order.'
       ].join('\n')
     }
   },
@@ -354,69 +356,131 @@ const EVALUATOR_PROMPT_BUILDERS = {
     // 评估者B - 学生发展指导师
     ({ question, answer, taskLevelLabel, taskLevel }) => {
       const growthFocus = {
-        remember: '记忆的准确性和组织性',
-        understand: '概念理解和意义建构',
-        apply: '知识迁移和实践应用',
-        analyze: '思维的系统性和逻辑性',
-        evaluate: '批判思维和判断力',
-        create: '创新思维和综合能力'
+        remember: `【记忆的准确性和组织性】
+评估关注：知识点的准确性、完整性、信息组织、提取效率、知识固化程度
+评分：8-10分(准确完整系统) 6-7分(基本准确有组织) 4-5分(有错误或遗漏) 0-3分(严重错误)`,
+
+        understand: `【概念理解和意义建构】
+评估关注：概念转换能力、新旧知识联系、举例说明、比较分析、解释深度
+评分：8-10分(深度理解多角度) 6-7分(基本理解) 4-5分(部分理解有误解) 0-3分(基本不理解)`,
+
+        apply: `【知识迁移和实践应用】
+评估关注：情境识别、策略选择、适应性调整、执行质量、结果验证
+评分：8-10分(灵活迁移创造性) 6-7分(正确应用基本方法) 4-5分(应用有困难) 0-3分(无法应用)`,
+
+        analyze: `【思维的系统性和逻辑性】
+评估关注：分解能力、关系识别、组织逻辑、证据意识、结构把握
+评分：8-10分(系统深入逻辑严密) 6-7分(基本分析框架) 4-5分(分析零散逻辑跳跃) 0-3分(缺乏分析思维)`,
+
+        evaluate: `【批判思维和判断力】
+评估关注：标准明确性、证据权衡、视角多元、论证有力、自我反思
+评分：8-10分(批判深刻论证充分) 6-7分(合理判断) 4-5分(判断主观) 0-3分(武断判断)`,
+
+        create: `【创新思维和综合能力】
+评估关注：新颖性、整合能力、规划能力、实用价值、表达呈现
+评分：8-10分(高度原创价值显著) 6-7分(有一定新意) 4-5分(创新有限) 0-3分(缺乏创新)`
       }
+
+      const focus = growthFocus[taskLevel] || growthFocus.remember
 
       return `作为学生发展指导师，请从成长视角评估回答，关注学习潜力和进步空间。
 
-评估重点：${taskLevelLabel}层级的${growthFocus[taskLevel]}
+## 当前评估层级：${taskLevelLabel}
 
-问题："${question}"
+${focus}
 
-学生回答："${answer}"
+## 评估材料
 
-请从以下维度评估：
+【老师提问】：${question}
+【学生回答】：${answer}
 
-1. 当前在${taskLevelLabel}层级的表现水平（0-10分）
+## 评估任务
 
-2. 回答中展现的思维亮点和发展潜力
+1. 基于上述标准给出0-10分的评分
+2. 撰写发展性反馈（2-3句话），包括：
+   - 肯定回答中表现出的优势或潜力
+   - 指出在${taskLevelLabel}层级最需要发展的1-2个方面
+   - 提供具体的、可操作的改进建议
 
-3. 具体可操作的改进建议
+## 输出格式
 
-4. 如何从当前水平向更高层级迈进
-
-反馈应体现鼓励性、建设性，帮助学生认识优势与不足。
-
-请输出JSON：{ "score": 数字, "feedback": "鼓励性建设反馈" }`
+请严格使用以下JSON格式：
+{
+  "score": 数字,
+  "feedback": "您的反馈内容，体现发展性评估理念",
+  "strength": "学生在该层级表现出的主要优势",
+  "growth_area": "最需要发展的具体方面"
+}`
     },
 
     // 评估者C - 认知科学分析师
     ({ question, answer, taskLevelLabel, taskLevel }) => {
       const cognitiveProcess = {
-        remember: '识别→回忆→提取',
-        understand: '解释→举例→分类→总结→推断→比较→说明',
-        apply: '执行→实施',
-        analyze: '区分→组织→归因',
-        evaluate: '检查→批评',
-        create: '生成→规划→产生'
+        remember: `【识别→回忆→提取】
+评估重点：寻找记忆过程的亮点（正确片段、术语尝试、组织努力、提取策略）
+评分：有尝试至少3分，部分正确5-7分，完全准确8-10分，避免0分`,
+
+        understand: `【解释→举例→分类→总结→推断→比较→说明】
+评估重点：发现理解过程的萌芽（自我表达、概念联系、解释努力、意义建构）
+评分：尝试解释至少4分，基本理解6-8分，深入理解9-10分，重视思维过程`,
+
+        apply: `【执行→实施】
+评估重点：发现知识应用的尝试（知识联系、策略尝试、适应性调整、实践思维）
+评分：有应用意图至少4分，基本正确6-8分，灵活创新9-10分，鼓励实践尝试`,
+
+        analyze: `【区分→组织→归因】
+评估重点：发现分析思维的闪光点（信息分解、关系识别、逻辑组织、系统思维）
+评分：尝试分析至少5分，基本框架7-8分，深入系统9-10分，重视过程`,
+
+        evaluate: `【检查→批评】
+评估重点：发现批判思考的尝试（判断尝试、标准使用、论证努力、反思意识）
+评分：尝试评价至少5分，有理由判断7-8分，深度批判9-10分，鼓励思考表达`,
+
+        create: `【生成→规划→产生】
+评估重点：发现创造过程的火花（新颖性迹象、整合尝试、规划思维、综合能力）
+评分：尝试创造至少5分，基本创新7-8分，高度原创9-10分，重视创造过程`
       }
 
-      return `作为认知科学分析师，请深入分析回答中体现的认知加工过程。
+      const processGuide = cognitiveProcess[taskLevel] || cognitiveProcess.remember
 
-分析框架：${taskLevelLabel}层级的认知过程 - ${cognitiveProcess[taskLevel]}
+      return `作为认知发展观察者，专注于发现学生思维过程中的闪光点，肯定认知努力而非完美程度。
 
-问题："${question}"
+## 评估理念
 
-回答样本："${answer}"
+每个回答都代表思考过程，寻找思维亮点而非只挑错误，评分反映认知努力程度。
 
-请分析：
+## 当前评估层级：${taskLevelLabel}
 
-1. 回答中观察到的具体认知过程证据
+${processGuide}
 
-2. 思维过程的完整性和复杂性
+## 评估材料
 
-3. 认知跳跃或缺失环节
+【老师提问】：${question}
+【学生回答】：${answer}
 
-4. 基于认知过程质量的评分（0-10分）
+## 评估思考
 
-反馈应揭示思维运作机制，指出认知发展的关键节点。
+1. 回答中显示了哪些认知过程的尝试？
+2. 学生在哪个环节做得最有亮点？
+3. 如何鼓励这种思维并帮助进一步发展？
 
-请输出JSON：{ "score": 数字, "feedback": "认知过程分析" }`
+## 评分指导
+
+6-10分：展现了该层级的认知过程；3-5分：显示了一些尝试；1-2分：只有微弱迹象；尽量避免0分。
+
+## 反馈要求
+
+请提供温暖鼓励的反馈，包含：肯定思维亮点、指出已展现的能力、温和的发展建议。
+
+## 输出格式
+
+请严格使用以下JSON格式：
+{
+  "score": 数字（基于认知努力而非完美程度）,
+  "feedback": "鼓励性反馈，聚焦认知过程亮点",
+  "cognitive_highlight": "观察到的认知过程亮点",
+  "growth_suggestion": "一个温和的发展建议"
+}`
     }
   ],
 
