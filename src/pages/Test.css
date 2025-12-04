@@ -6,7 +6,8 @@
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  padding: 24px;
+  /* 顶部适当增加内边距，避免内容被略微遮挡 */
+  padding: 32px 24px 24px 24px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;

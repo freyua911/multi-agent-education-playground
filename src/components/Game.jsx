@@ -105,7 +105,7 @@ function Game({ language, username }) {
   const closeLibraryHint = () => setIsLibraryHintOpen(false)
 
   const taskInfoText = language === 'zh'
-    ? '这是当前的测试结果，点击开始测试后，考官会基于你的对话进行延展测试，如果发现自己回答不上来，请回到课堂继续学习讨论哦。'
+    ? '这里显示当前的测试结果。点击开始测试后，考官会基于测试的主题进行延展测试，如果发现自己回答不上来，请回到课堂继续学习讨论哦。'
     : 'This shows your current test performance. After you tap Start Test, the examiner will extend the assessment based on your dialogue. If you feel stuck, return to the classroom and keep learning!'
 
   const libraryHintText = language === 'zh'
@@ -236,6 +236,24 @@ function Game({ language, username }) {
     }
     setConversations(updatedConversations)
 
+    // 如果是本轮第一次与老师对话，则将学生当前的描述视为“考试主题”并写入 meta
+    if (!hasSentFirstMessage && currentRole === 'teacher') {
+      try {
+        const currentState = loadConversationState() || {}
+        const prevMeta = currentState.meta || {}
+        saveConversationState({
+          meta: {
+            ...prevMeta,
+            language,
+            username,
+            examTopic: userMessage
+          }
+        })
+      } catch (e) {
+        console.warn('Failed to save exam topic to conversation state from first teacher turn:', e)
+      }
+    }
+
     addToGameLog({
       type: 'user_message',
       role: currentRole,
@@ -255,8 +273,19 @@ function Game({ language, username }) {
     try {
       // 获取上下文对话历史（只包含 teacher、peer、examiner、user、feedback，不包含 librarian、mindmap、evaluator）
       const contextHistory = getContextConversationHistory()
-      // 构建消息：先包含上下文历史，然后是当前对话
+      // 如果这是本轮对话的第一条用户消息，引导老师/同伴先给出更具体的方向选项
+      const firstTurnSystemMessage = !hasSentFirstMessage
+        ? [{
+            role: 'system',
+            content: language === 'zh'
+              ? '现在是与学习者本轮课堂对话的第一轮。请你先根据学习者的需求，给出3-5个更具体的细分学习方向选项（例如不同的子主题、难度层级或应用情境），用简短一句话说明每个方向的重点，然后让学习者在其中选择一个继续深入，而不要立刻直接回答问题或给出完整讲解。'
+              : 'This is the first turn of the classroom conversation with the learner. First, propose 3–5 more specific directions (e.g., subtopics, difficulty levels, or application scenarios) that the learner could choose from, with one short sentence explaining the focus of each option. Then ask the learner to pick ONE direction to continue, instead of directly answering the question or giving a full explanation.'
+          }]
+        : []
+
+      // 构建消息：先包含“首轮引导”系统提示（若需要），再是上下文历史和当前对话
       const messages = [
+        ...firstTurnSystemMessage,
         ...contextHistory.map(msg => ({
           role: msg.role === 'teacher' || msg.role === 'peer' ? 'assistant' : msg.role,
           content: msg.content
@@ -517,19 +546,19 @@ function Game({ language, username }) {
           </div>
         </div>
         <div className="input-container">
-          <button
-            type="button"
-            className="nav-info-btn"
-            aria-label={language === 'zh' ? '查看图书馆提示' : 'View library hint'}
-            onClick={() => setIsLibraryHintOpen(true)}
-          >
-            ?
-          </button>
           <button className="nav-btn" onClick={() => navigate('/library')}>
             {language === 'zh' ? '图书馆' : 'Library'}
           </button>
           <button className="nav-btn" onClick={() => navigate('/mindmap')}>
             {language === 'zh' ? '思维导图' : 'Mind Map'}
+          </button>
+          <button
+            type="button"
+            className="nav-info-btn"
+            aria-label={language === 'zh' ? '查看按钮使用提示' : 'View button usage hint'}
+            onClick={() => setIsLibraryHintOpen(true)}
+          >
+            ?
           </button>
           <textarea
             value={inputValue}
@@ -602,12 +631,12 @@ function Game({ language, username }) {
           >
             <button
               className="nav-info-close"
-              aria-label={language === 'zh' ? '关闭图书馆提示' : 'Close library hint'}
+              aria-label={language === 'zh' ? '关闭按钮使用提示' : 'Close button usage hint'}
               onClick={closeLibraryHint}
             >
               ×
             </button>
-            <h3>{language === 'zh' ? '图书馆提示' : 'Library Hint'}</h3>
+            <h3>{language === 'zh' ? '按钮使用提示' : 'Button Usage Hint'}</h3>
             <p>{libraryHintText}</p>
           </div>
         </div>

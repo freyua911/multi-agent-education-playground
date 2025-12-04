@@ -694,6 +694,8 @@
   display: flex;
   gap: 10px;
   justify-content: center;
+  align-items: flex-end;
+  position: relative; /* 保持在底部区域内布局，不再固定到屏幕 */
 }
 
 .message-input {
@@ -742,19 +744,23 @@
   width: 120px;
   height: 50px;
   padding: 0;
-  background: #48bb78;
-  color: #ffffff;
-  border: 3px solid #276749;
+  background: #ffffff;
+  color: #2b2b2b;
+  border: 3px solid #6b4f37;
   border-radius: 0;
   cursor: pointer;
   font-size: 1rem;
   box-shadow: none;
   transition: transform 0.15s ease;
+  /* 与输入框和发送按钮保持同一高度，仅在最右侧 */
+  margin-left: auto; /* 将测试按钮推到这一行的最右端 */
 }
 
 .test-btn:hover {
   transform: translateY(-1px);
 }
+
+/* .bottom-controls 已在上方定义，这里不再额外增加 padding-bottom */
 
 .game-end-overlay {
   position: fixed;

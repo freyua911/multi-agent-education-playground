@@ -9,14 +9,15 @@ function PostTest({ language, username }) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
-  // 重新编号：Q1-Q4, Q5-Q10, Q11-Q15, Q16-Q17, Q18
+  // 重新编号：Q1-Q4, Q5-Q10, Q11-Q15, NASA-Q16-Q21, Q22-Q23, Q24
   const [form, setForm] = useState({
     q1: '', q2: '', q3: '', q4: '', 
     q5: '', q6: '', q7: '', q8: '', q9: '', q10: '',
     q11: '', q12: '',
     q13: '', q14: '', q15: '',
-    q16: '', q17: '',
-    q18: ''
+    q16: '', q17: '', q18: '', q19: '', q20: '', q21: '',
+    q22: '', q23: '',
+    q24: ''
   })
 
   const handleChange = (field, value) => {
@@ -24,10 +25,15 @@ function PostTest({ language, username }) {
   }
 
   const handleSubmit = async () => {
-    // 检查必答问题（Q1-Q15是必答的，Q16-Q18是开放性问题可选）
+    // 检查必答问题（Q1-Q21是必答的，Q22-Q24是开放性问题可选）
     const missingFields = []
     
-    const requiredQuestions = ['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7', 'q8', 'q9', 'q10', 'q11', 'q12', 'q13', 'q14', 'q15']
+    const requiredQuestions = [
+      'q1', 'q2', 'q3', 'q4',
+      'q5', 'q6', 'q7', 'q8', 'q9', 'q10',
+      'q11', 'q12', 'q13', 'q14', 'q15',
+      'q16', 'q17', 'q18', 'q19', 'q20', 'q21'
+    ]
     const missingQuestions = requiredQuestions.filter(q => !form[q])
     
     if (missingQuestions.length > 0) {
@@ -65,8 +71,15 @@ function PostTest({ language, username }) {
         throw new Error(isZh ? '保存问卷失败，请稍后重试。' : 'Failed to save questionnaire. Please try again later.')
       }
       
-      // 保存成功，导航到完成页面，并传递已完成问卷的状态
-      navigate('/completion', { state: { questionnaireCompleted: true } })
+      // 保存成功后，清空语言与用户名，并返回到语言选择界面
+      try {
+        localStorage.removeItem('app_language')
+        localStorage.removeItem('app_username')
+      } catch (e) {
+        console.warn('Failed to clear localStorage language/user:', e)
+      }
+      // 使用完整刷新确保回到语言选择界面并重置状态
+      window.location.href = '/'
     } catch (err) {
       console.error('PostTest submit error:', err)
       setError(err.message || (isZh ? '提交失败，请稍后重试。' : 'Submit failed. Please try again.'))
@@ -182,7 +195,7 @@ function PostTest({ language, username }) {
                   id: 'q5', 
                   text: isZh 
                     ? '我能够清楚地区分不同AI角色（教师、同伴、考官、评估者）的功能差异。' 
-                    : 'I could clearly distinguish the functional differences between the various AI roles (Teacher, Peer, Examiner, Assessor).' 
+                    : 'I could clearly distinguish the functional differences between the various AI roles (Teacher, Peer, Examiner, Evaluator).' 
                 },
                 { 
                   id: 'q6', 
@@ -206,7 +219,7 @@ function PostTest({ language, username }) {
                   id: 'q9', 
                   text: isZh 
                     ? '三位"评估者"提供的评分和反馈总结有助于我了解自己的学习情况并且补充学习新的知识点。' 
-                    : 'The ratings and feedback summaries provided by the three "Assessors" helped me understand my learning status and supplement new knowledge points.' 
+                    : 'The ratings and feedback summaries provided by the three "Evaluators" helped me understand my learning status and supplement new knowledge points.' 
                 },
                 { 
                   id: 'q10', 
@@ -316,7 +329,80 @@ function PostTest({ language, username }) {
           <section className="test-panel pretest-panel pretest-panel-right">
             <div className="test-chat-feed pretest-form">
               <div className="pretest-topic-header">
-                <h3>{isZh ? '4. 关于 Bloom\'s taxonomy 的体验与看法' : '4. Bloom\'s Taxonomy Experience and Reflections'}</h3>
+                <h3>{isZh ? '4. 任务负荷（NASA Task Load Index，简化版）' : '4. Task Load (NASA Task Load Index, simplified)'}</h3>
+                <p className="pretest-topic-intro">
+                  {isZh
+                    ? '请根据你在整个 Stratux 使用过程中的体验，评价下面几个维度的主观负荷（1=非常低，5=非常高）。'
+                    : 'Based on your overall experience with Stratux, please rate the following workload dimensions (1 = Very Low, 5 = Very High).'}
+                </p>
+                <div className="pretest-topic-divider"></div>
+              </div>
+
+              {[
+                {
+                  id: 'q16',
+                  text: isZh
+                    ? '在使用本系统完成任务时，我需要投入大量的心理思考和注意力（心理负荷）。'
+                    : 'While working with the system, I had to invest a lot of mental effort and attention (mental demand).'
+                },
+                {
+                  id: 'q17',
+                  text: isZh
+                    ? '在使用本系统时，身体姿势或操作上的负担对我来说比较大（体力负荷）。'
+                    : 'The physical demands of using the system (posture, input, interaction) felt high for me (physical demand).'
+                },
+                {
+                  id: 'q18',
+                  text: isZh
+                    ? '我经常感觉时间比较紧张，需要在较短时间内完成任务（时间压力）。'
+                    : 'I often felt time pressure to complete the tasks within a limited time (temporal demand).'
+                },
+                {
+                  id: 'q19',
+                  text: isZh
+                    ? '为了顺利完成学习任务，我需要付出很大的整体努力（总体用力程度）。'
+                    : 'To successfully complete the learning tasks, I had to put in a lot of overall effort (overall effort).'
+                },
+                {
+                  id: 'q20',
+                  text: isZh
+                    ? '总体来说，我对自己在本次学习任务中的表现是满意的（自我表现评价）。'
+                    : 'Overall, I am satisfied with my performance in this learning task (self-rated performance).'
+                },
+                {
+                  id: 'q21',
+                  text: isZh
+                    ? '在使用本系统时，我经常感到沮丧、紧张或烦躁（挫败感）。'
+                    : 'While using this system, I often felt frustrated, tense, or irritated (frustration).'
+                }
+              ].map(item => (
+                <div key={item.id} className="pretest-question">
+                  <label><strong>{item.id.toUpperCase()}.</strong> {item.text}</label>
+                  <div className="pretest-scale-options">
+                    {[
+                      { val: 1, label: isZh ? '非常低' : 'Very Low' },
+                      { val: 2, label: isZh ? '较低' : 'Low' },
+                      { val: 3, label: isZh ? '一般' : 'Moderate' },
+                      { val: 4, label: isZh ? '较高' : 'High' },
+                      { val: 5, label: isZh ? '非常高' : 'Very High' }
+                    ].map(({ val, label }) => (
+                      <label key={val} className="pretest-scale-option">
+                        <input
+                          type="radio"
+                          name={item.id}
+                          value={String(val)}
+                          checked={form[item.id] === String(val)}
+                          onChange={(e) => handleChange(item.id, e.target.value)}
+                        />
+                        <span>{label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              <div className="pretest-topic-header">
+                <h3>{isZh ? '5. 关于 Bloom\'s taxonomy 的体验与看法' : '5. Bloom\'s Taxonomy Experience and Reflections'}</h3>
                 <p className="pretest-topic-intro">
                   {isZh
                     ? '你认为AI辅助学习对你解答哪个层级的问题最有帮助？为什么你能如此的容易的解答这个层级的问题呢？'
@@ -326,39 +412,39 @@ function PostTest({ language, username }) {
               </div>
 
               <div className="pretest-question">
-                <label htmlFor="q16">
-                  <strong>{isZh ? 'Q16.' : 'Q16.'}</strong>{' '}
+                <label htmlFor="q22">
+                  <strong>{isZh ? 'Q22.' : 'Q22.'}</strong>{' '}
                   {isZh
                     ? '你认为AI辅助学习对你解答哪个层级的问题最没有用？为什么你难以解答这个层级的问题呢？'
                     : 'Which level of Bloom\'s taxonomy do you think AI-assisted learning was least helpful for answering? Why did you find it difficult to answer questions at this level?'}
                 </label>
                 <textarea
-                  id="q16"
+                  id="q22"
                   className="pretest-textarea"
-                  value={form.q16}
-                  onChange={(e) => handleChange('q16', e.target.value)}
+                  value={form.q22}
+                  onChange={(e) => handleChange('q22', e.target.value)}
                   rows={4}
                 />
               </div>
 
               <div className="pretest-question">
-                <label htmlFor="q17">
-                  <strong>{isZh ? 'Q17.' : 'Q17.'}</strong>{' '}
+                <label htmlFor="q23">
+                  <strong>{isZh ? 'Q23.' : 'Q23.'}</strong>{' '}
                   {isZh
                     ? '您觉得那个AI角色对你的学习帮助最大？它还能如何改进呢？'
                     : 'Which AI role do you think was most helpful for your learning? How can it be improved?'}
                 </label>
                 <textarea
-                  id="q17"
+                  id="q23"
                   className="pretest-textarea"
-                  value={form.q17}
-                  onChange={(e) => handleChange('q17', e.target.value)}
+                  value={form.q23}
+                  onChange={(e) => handleChange('q23', e.target.value)}
                   rows={4}
                 />
               </div>
 
               <div className="pretest-topic-header">
-                <h3>{isZh ? '5. 开放性问题' : '5. Open-ended Questions'}</h3>
+                <h3>{isZh ? '6. 开放性问题' : '6. Open-ended Questions'}</h3>
                 <p className="pretest-topic-intro">
                   {isZh
                     ? '请分享您的其他建议或想法。'
@@ -368,17 +454,17 @@ function PostTest({ language, username }) {
               </div>
 
               <div className="pretest-question">
-                <label htmlFor="q18">
-                  <strong>{isZh ? 'Q18.' : 'Q18.'}</strong>{' '}
+                <label htmlFor="q24">
+                  <strong>{isZh ? 'Q24.' : 'Q24.'}</strong>{' '}
                   {isZh
                     ? '您还有其他补充的意见、建议或想法想对本次系统设计和体验提出吗？'
                     : 'Do you have any additional comments, suggestions, or feedback about the design and your experience with this system?'}
                 </label>
                 <textarea
-                  id="q18"
+                  id="q24"
                   className="pretest-textarea"
-                  value={form.q18}
-                  onChange={(e) => handleChange('q18', e.target.value)}
+                  value={form.q24}
+                  onChange={(e) => handleChange('q24', e.target.value)}
                   rows={4}
                 />
               </div>

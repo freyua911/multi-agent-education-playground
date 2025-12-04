@@ -285,6 +285,9 @@ function Test({ language, username }) {
     const levelToUse = targetLevel || currentTestLevel
     try {
       setIsLoading(true)
+      // 从全局对话状态中读取学生在课堂中声明的考试主题（如果有）
+      const state = loadConversationState() || {}
+      const examTopic = state?.meta?.examTopic || null
       // 获取上下文对话历史，并过滤为“课堂对话”：只保留 teacher / peer / user
       // 不包含 feedback agent 的总结，也不包含之前考官的问答，避免考官复述反馈或旧题目
       const rawContextHistory = getContextConversationHistory()
@@ -295,6 +298,15 @@ function Test({ language, username }) {
       // 使用传入的对话（通常包含最新一条用户消息），否则使用当前 state 中的对话
       const displayConversation = (baseConversation || conversation).filter(entry => entry.role !== 'system')
       const apiMessages = [
+        // 如果有考试主题，先以 system 形式明确传递给考官
+        ...(examTopic
+          ? [{
+              role: 'system',
+              content: language === 'zh'
+                ? `学生在课堂对话中已经明确了本次想要被测试的主题（考试主题）：「${examTopic}」。你在出题和提问时必须始终围绕这个主题展开，不要跳出这一主题。`
+                : `In the classroom conversation, the learner has already specified the desired exam topic: "${examTopic}". All of your test questions must stay closely aligned with this topic and should not drift away from it.`
+            }]
+          : []),
         // 添加上下文对话历史作为上下文
         ...contextHistory.map(msg => ({
           role: msg.role === 'teacher' || msg.role === 'peer' || msg.role === 'examiner' || msg.role === 'feedback'
