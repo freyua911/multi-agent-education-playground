@@ -192,11 +192,11 @@ function Game({ language, username }) {
   }
 
   const handleRoleSelect = (role) => {
-    // 切换角色时，不重置round start index，保持当前内容显示
+    // 切换角色时，设置新的round start index，这样会显示新的打招呼消息
     setCurrentRole(role)
     // 保留输入内容，直到用户点击发送
-    // 只有在第一次选择角色时才设置round start index
-    if (currentRoundStartIndex === null) {
+    // 每次选择角色时，如果当前轮次还没有消息，重置round start index以显示打招呼消息
+    if (conversationMessages.length === 0) {
       setCurrentRoundStartIndex(gameLog.length)
     }
   }
@@ -432,6 +432,15 @@ function Game({ language, username }) {
           {/* 左侧：老师 */}
           <div className="message-column message-column-teacher">
             <div className="message-column-content">
+              {currentRole === 'teacher' && conversationMessages.length === 0 && (
+                <div className="message greeting-message">
+                  <div className="message-content">
+                    {hasSentFirstMessage
+                      ? (language === 'zh' ? 'hello~' : 'hello~')
+                      : (language === 'zh' ? 'hello~ 你想学习些什么呢？' : 'hi! Welcome:) whats you want to learn?')}
+                  </div>
+                </div>
+              )}
               {currentRole === 'teacher' && conversationMessages.map((entry, index) => {
                 if (entry.type === 'assistant_message' && entry.role === 'teacher') {
                   return (
@@ -475,6 +484,15 @@ function Game({ language, username }) {
           {/* 右侧：同伴 */}
           <div className="message-column message-column-peer">
             <div className="message-column-content">
+              {currentRole === 'peer' && conversationMessages.length === 0 && (
+                <div className="message greeting-message">
+                  <div className="message-content">
+                    {hasSentFirstMessage
+                      ? (language === 'zh' ? 'hello~' : 'hello~')
+                      : (language === 'zh' ? 'hello~ 你想学习些什么呢？' : 'hi! Welcome:) whats you want to learn?')}
+                  </div>
+                </div>
+              )}
               {currentRole === 'peer' && conversationMessages.map((entry, index) => {
                 if (entry.type === 'assistant_message' && entry.role === 'peer') {
                   return (
@@ -501,11 +519,6 @@ function Game({ language, username }) {
       </div>
 
       <div className="bottom-controls">
-        {currentRole && !hasSentFirstMessage && (
-          <div className="hint-bubble">
-            {language === 'zh' ? 'hello~ 你想学习些什么呢？' : 'hi! Welcome:) whats you want to learn?'}
-          </div>
-        )}
         {!currentRole && (
           <div className="select-role-hint white">
             {language === 'zh' ? '请选择一个角色开始对话' : 'Please select a role to start conversation'}

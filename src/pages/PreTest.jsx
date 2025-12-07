@@ -13,6 +13,7 @@ function PreTest({ language, username }) {
     age: '',
     q2: '',
     q3: '',
+    q3Other: '',
     aiTool: '',
     q4: '',
     q5: '',
@@ -269,8 +270,8 @@ function PreTest({ language, username }) {
                           type="text"
                           className="pretest-input pretest-input-other"
                           placeholder={isZh ? '例如：竞赛、创作、兴趣项目等' : 'e.g., competitions, creative projects, personal interests'}
-                          value={form.q17 || ''}
-                          onChange={(e) => handleChange('q17', e.target.value)}
+                          value={form.q3Other || ''}
+                          onChange={(e) => handleChange('q3Other', e.target.value)}
                         />
                       </div>
                     )

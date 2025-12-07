@@ -32,7 +32,7 @@ function PostTest({ language, username }) {
       'q1', 'q2', 'q3', 'q4',
       'q5', 'q6', 'q7', 'q8', 'q9', 'q10',
       'q11', 'q12', 'q13', 'q14', 'q15',
-      'q16', 'q17', 'q18', 'q19', 'q20', 'q21'
+      'q16', 'q17', 'q18', 'q19', 'q20'
     ]
     const missingQuestions = requiredQuestions.filter(q => !form[q])
     
@@ -400,10 +400,26 @@ function PostTest({ language, username }) {
                 <h3>{isZh ? '5. 关于 Bloom\'s taxonomy 的体验与看法' : '5. Bloom\'s Taxonomy Experience and Reflections'}</h3>
                 <p className="pretest-topic-intro">
                   {isZh
-                    ? '你认为AI辅助学习对你解答哪个层级的问题最有帮助？为什么你能如此的容易的解答这个层级的问题呢？'
-                    : 'Which level of Bloom\'s taxonomy do you think AI-assisted learning was most helpful for answering? Why were you able to answer questions at this level so easily?'}
+                    ? '请回答以下关于Bloom分类法的问题。'
+                    : 'Please answer the following questions about Bloom\'s taxonomy.'}
                 </p>
                 <div className="pretest-topic-divider"></div>
+              </div>
+
+              <div className="pretest-question">
+                <label htmlFor="q21">
+                  <strong>{isZh ? 'Q21.' : 'Q21.'}</strong>{' '}
+                  {isZh
+                    ? '你认为AI辅助学习对你解答哪个层级的问题最有帮助？为什么你能如此的容易的解答这个层级的问题呢？'
+                    : 'Which level of Bloom\'s taxonomy do you think AI-assisted learning was most helpful for answering? Why were you able to answer questions at this level so easily?'}
+                </label>
+                <textarea
+                  id="q21"
+                  className="pretest-textarea"
+                  value={form.q21}
+                  onChange={(e) => handleChange('q21', e.target.value)}
+                  rows={4}
+                />
               </div>
 
               <div className="pretest-question">
@@ -426,7 +442,7 @@ function PostTest({ language, username }) {
                 <label htmlFor="q23">
                   <strong>{isZh ? 'Q23.' : 'Q23.'}</strong>{' '}
                   {isZh
-                    ? '您觉得那个AI角色对你的学习帮助最大？它还能如何改进呢？'
+                    ? '您觉得哪个AI角色对你的学习帮助最大？它还能如何改进呢？'
                     : 'Which AI role do you think was most helpful for your learning? How can it be improved?'}
                 </label>
                 <textarea
