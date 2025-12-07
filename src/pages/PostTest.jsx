@@ -147,7 +147,7 @@ function PostTest({ language, username }) {
                 { 
                   id: 'q4', 
                   text: isZh 
-                    ? '相较于常规的AI大模型，我愿意在未来继续使用这样类似的AI课堂游戏进行学习。' 
+                    ? '相较于常用的AI大模型，我愿意在未来继续使用这样类似的AI课堂游戏进行学习。' 
                     : 'Compared with using general AI models, I am more willing to continue using this kind of AI classroom game for learning in the future.' 
                 }
               ].map(item => (
@@ -292,12 +292,7 @@ function PostTest({ language, username }) {
                     ? '我在整个过程中发现了AI的幻觉（指AI在回答时出现不符合事实的回答）或者上下文错误等问题，这些AI存在的问题会降低我对AI的信任度。' 
                     : 'During this process, I noticed AI hallucinations (incorrect or factually inaccurate responses) or contextual errors, and these AI issues reduced my trust in AI.' 
                 },
-                { 
-                  id: 'q15', 
-                  text: isZh 
-                    ? '我认为思维导图能够帮我更好的检查和概览我学习到的知识。' 
-                    : 'I believe the mind map helped me better review and overview the knowledge I learned.' 
-                }
+                
               ].map(item => (
                 <div key={item.id} className="pretest-question">
                   <label><strong>{item.id.toUpperCase()}.</strong> {item.text}</label>
@@ -340,51 +335,51 @@ function PostTest({ language, username }) {
 
               {[
                 {
+                  id: 'q15',
+                  text: isZh
+                    ? '在使用本系统完成任务时，我需要投入的心理思考和注意力：'
+                    : 'While using this system to complete tasks, the mental effort and attention I needed to invest:'
+                },
+                {
                   id: 'q16',
                   text: isZh
-                    ? '在使用本系统完成任务时，我需要投入大量的心理思考和注意力（心理负荷）。'
-                    : 'While working with the system, I had to invest a lot of mental effort and attention (mental demand).'
+                    ? '在使用本系统完成任务时，我需要付出的身体操作和姿势调整：'
+                    : 'While using this system to complete tasks, the physical operations and posture adjustments I needed:'
                 },
                 {
                   id: 'q17',
                   text: isZh
-                    ? '在使用本系统时，身体姿势或操作上的负担对我来说比较大（体力负荷）。'
-                    : 'The physical demands of using the system (posture, input, interaction) felt high for me (physical demand).'
+                    ? '在使用本系统完成任务时，我感受到的时间紧迫感：'
+                    : 'While using this system to complete tasks, the time pressure I felt:'
                 },
                 {
                   id: 'q18',
                   text: isZh
-                    ? '我经常感觉时间比较紧张，需要在较短时间内完成任务（时间压力）。'
-                    : 'I often felt time pressure to complete the tasks within a limited time (temporal demand).'
+                    ? '在使用本系统完成任务时，我需要付出的总体努力程度：'
+                    : 'While using this system to complete tasks, the overall effort I needed to put in:'
                 },
                 {
                   id: 'q19',
                   text: isZh
-                    ? '为了顺利完成学习任务，我需要付出很大的整体努力（总体用力程度）。'
-                    : 'To successfully complete the learning tasks, I had to put in a lot of overall effort (overall effort).'
+                    ? '在使用本系统完成任务时，我对自己的表现感到满意的程度：'
+                    : 'While using this system to complete tasks, how satisfied I was with my own performance:'
                 },
                 {
                   id: 'q20',
                   text: isZh
-                    ? '总体来说，我对自己在本次学习任务中的表现是满意的（自我表现评价）。'
-                    : 'Overall, I am satisfied with my performance in this learning task (self-rated performance).'
-                },
-                {
-                  id: 'q21',
-                  text: isZh
-                    ? '在使用本系统时，我经常感到沮丧、紧张或烦躁（挫败感）。'
-                    : 'While using this system, I often felt frustrated, tense, or irritated (frustration).'
+                    ? '在使用本系统完成任务时，我感受到的挫败、紧张或烦躁程度：'
+                    : 'While using this system to complete tasks, the level of frustration, tension, or irritation I felt:'
                 }
               ].map(item => (
                 <div key={item.id} className="pretest-question">
                   <label><strong>{item.id.toUpperCase()}.</strong> {item.text}</label>
                   <div className="pretest-scale-options">
                     {[
-                      { val: 1, label: isZh ? '非常低' : 'Very Low' },
+                      { val: 1, label: isZh ? '很低' : 'Very Low' },
                       { val: 2, label: isZh ? '较低' : 'Low' },
                       { val: 3, label: isZh ? '一般' : 'Moderate' },
                       { val: 4, label: isZh ? '较高' : 'High' },
-                      { val: 5, label: isZh ? '非常高' : 'Very High' }
+                      { val: 5, label: isZh ? '很高' : 'Very High' }
                     ].map(({ val, label }) => (
                       <label key={val} className="pretest-scale-option">
                         <input

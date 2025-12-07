@@ -111,6 +111,8 @@
   margin-bottom: 12px;
   min-height: 32px;
   flex-shrink: 0;
+  padding: 8px 0;
+  border: none;
 }
 
 .panel-header h2 {
@@ -206,9 +208,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 10px;
-  background: rgba(247, 250, 252, 0.8);
-  border: 2px dashed rgba(45, 55, 72, 0.2);
+  padding: 10px 0;
   margin-bottom: 12px;
 }
 
@@ -350,12 +350,20 @@
   background: rgba(255, 255, 255, 0.9);
 }
 
+.test-feedback-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.test-feedback-panel .test-feedback-content {
+  flex: 1;
+  min-height: 0;
+}
+
 .test-feedback-content {
-  height: 520px;
   overflow-y: auto;
-  background: rgba(247, 250, 252, 0.8);
-  padding: 10px;
-  border: 2px dashed rgba(45, 55, 72, 0.2);
+  padding: 10px 0;
 }
 
 .test-feedback-entry {

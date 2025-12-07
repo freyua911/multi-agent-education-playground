@@ -11,19 +11,31 @@ function PreTest({ language, username }) {
 
   const [form, setForm] = useState({
     age: '',
-    major: '',
+    q2: '',
     q3: '',
+    aiTool: '',
     q4: '',
     q5: '',
     q6: '',
     q7: '',
     q8: '',
+    q9: '',
     q16: '',
     q17: ''
   })
 
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }))
+  }
+
+  // 多选：切换 AI 使用目的（存为以 | 分隔的字符串，便于校验和保存）
+  const togglePurpose = (value) => {
+    setForm(prev => {
+      const current = (prev.q3 || '').split('|').filter(Boolean)
+      const exists = current.includes(value)
+      const next = exists ? current.filter(v => v !== value) : [...current, value]
+      return { ...prev, q3: next.join('|') }
+    })
   }
 
   const handleStartGame = async () => {
@@ -34,16 +46,24 @@ function PreTest({ language, username }) {
       missingFields.push(isZh ? '年龄' : 'Age')
     }
     
-    if (!form.q3) {
-      missingFields.push(isZh ? 'AI使用程度' : 'AI Usage')
+    if (!form.q2) {
+      missingFields.push(isZh ? 'AI使用频率' : 'AI Usage Frequency')
     }
     
-    // 检查第二部分（Q4-Q8）
-    const section2Questions = ['q4', 'q5', 'q6', 'q7', 'q8']
+    if (!form.q3) {
+      missingFields.push(isZh ? 'AI使用目的' : 'AI Usage Purpose')
+    }
+    
+    if (!form.aiTool || !form.aiTool.trim()) {
+      missingFields.push(isZh ? '常用AI工具' : 'Common AI Tool')
+    }
+    
+    // 检查第二部分（Q4-Q9，NASA Task Load Index）
+    const section2Questions = ['q4', 'q5', 'q6', 'q7', 'q8', 'q9']
     const missingSection2 = section2Questions.filter(q => !form[q])
     
     if (missingSection2.length > 0) {
-      missingFields.push(isZh ? '第二部分问题' : 'Section 2 Questions')
+      missingFields.push(isZh ? '第二部分问题（任务负荷评价）' : 'Section 2 Questions (Task Load Assessment)')
     }
     
     if (missingFields.length > 0) {
@@ -149,59 +169,112 @@ function PreTest({ language, username }) {
               </div>
 
               <div className="pretest-question">
-                <label htmlFor="major"><strong>{isZh ? 'Q2. 专业/学科背景：' : 'Q2. Major/Disciplinary Background:'}</strong></label>
-                <input
-                  id="major"
-                  type="text"
-                  className="pretest-input"
-                  value={form.major}
-                  onChange={(e) => handleChange('major', e.target.value)}
-                />
-              </div>
-
-              <div className="pretest-question">
-                <label><strong>{isZh ? 'Q3. 您是否使用过任何的AI工具（如ChatGPT、GEMINI等）？' : 'Q3. Have you ever used any AI tools (e.g., ChatGPT, GEMINI, etc.)?'}</strong></label>
+                <label><strong>{isZh ? 'Q2. 您是否使用过任何的AI工具（如ChatGPT、GEMINI等）？' : 'Q2. Have you ever used any AI tools (e.g., ChatGPT, GEMINI, etc.)?'}</strong></label>
                 <div className="pretest-options">
                   <label className="pretest-radio-label">
                     <input
                       type="radio"
-                      name="q3"
+                      name="q2"
                       value="A"
-                      checked={form.q3 === 'A'}
-                      onChange={(e) => handleChange('q3', e.target.value)}
+                      checked={form.q2 === 'A'}
+                      onChange={(e) => handleChange('q2', e.target.value)}
                     />
                     <span>{isZh ? 'A. 每天都使用' : 'A. Use everyday'}</span>
                   </label>
                   <label className="pretest-radio-label">
                     <input
                       type="radio"
-                      name="q3"
+                      name="q2"
                       value="B"
-                      checked={form.q3 === 'B'}
-                      onChange={(e) => handleChange('q3', e.target.value)}
+                      checked={form.q2 === 'B'}
+                      onChange={(e) => handleChange('q2', e.target.value)}
                     />
                     <span>{isZh ? 'B. 经常使用（每周3-4天使用）' : 'B. Use frequently (3-4 days per week)'}</span>
                   </label>
                   <label className="pretest-radio-label">
                     <input
                       type="radio"
-                      name="q3"
+                      name="q2"
                       value="C"
-                      checked={form.q3 === 'C'}
-                      onChange={(e) => handleChange('q3', e.target.value)}
+                      checked={form.q2 === 'C'}
+                      onChange={(e) => handleChange('q2', e.target.value)}
                     />
                     <span>{isZh ? 'C. 偶尔使用（每周1-2天使用）' : 'C. Use occasionally (1-2 days per week)'}</span>
                   </label>
                   <label className="pretest-radio-label">
                     <input
                       type="radio"
-                      name="q3"
+                      name="q2"
                       value="D"
-                      checked={form.q3 === 'D'}
-                      onChange={(e) => handleChange('q3', e.target.value)}
+                      checked={form.q2 === 'D'}
+                      onChange={(e) => handleChange('q2', e.target.value)}
                     />
                     <span>{isZh ? 'D. 从未使用过' : 'D. Have never used them'}</span>
                   </label>
+                </div>
+              </div>
+
+              <div className="pretest-question">
+                <label><strong>{isZh ? 'Q3. 您通常出于哪些目的使用AI工具（如ChatGPT、GEMINI等）？（可多选）' : 'Q3. For what purposes do you usually use AI tools (e.g., ChatGPT, GEMINI)? (Multiple choices allowed)'}</strong></label>
+                <div className="pretest-options pretest-options-column">
+                  {[
+                    {
+                      value: 'learn',
+                      labelZh: '学习知识 / 完成课程相关任务',
+                      labelEn: 'Learning / course-related study'
+                    },
+                    {
+                      value: 'chat',
+                      labelZh: '日常聊天 / 消遣娱乐',
+                      labelEn: 'Casual chatting / entertainment'
+                    },
+                    {
+                      value: 'work',
+                      labelZh: '与工作或科研内容相关的任务',
+                      labelEn: 'Work- or research-related tasks'
+                    }
+                  ].map(option => {
+                    const selected = (form.q3 || '').split('|').filter(Boolean)
+                    const checked = selected.includes(option.value)
+                    return (
+                      <label key={option.value} className="pretest-checkbox-label">
+                        <input
+                          type="checkbox"
+                          name="q3"
+                          value={option.value}
+                          checked={checked}
+                          onChange={() => togglePurpose(option.value)}
+                        />
+                        <span>{isZh ? option.labelZh : option.labelEn}</span>
+                      </label>
+                    )
+                  })}
+                  {/* 其他 + 文本框 */}
+                  {(() => {
+                    const selected = (form.q3 || '').split('|').filter(Boolean)
+                    const checked = selected.includes('other')
+                    return (
+                      <div className="pretest-checkbox-other">
+                        <label className="pretest-checkbox-label">
+                          <input
+                            type="checkbox"
+                            name="q3"
+                            value="other"
+                            checked={checked}
+                            onChange={() => togglePurpose('other')}
+                          />
+                          <span>{isZh ? '其他（请简要说明）' : 'Other (please specify)'}</span>
+                        </label>
+                        <input
+                          type="text"
+                          className="pretest-input pretest-input-other"
+                          placeholder={isZh ? '例如：竞赛、创作、兴趣项目等' : 'e.g., competitions, creative projects, personal interests'}
+                          value={form.q17 || ''}
+                          onChange={(e) => handleChange('q17', e.target.value)}
+                        />
+                      </div>
+                    )
+                  })()}
                 </div>
               </div>
             </div>
@@ -210,56 +283,79 @@ function PreTest({ language, username }) {
           <section className="test-panel pretest-panel pretest-panel-right">
             <div className="test-chat-feed pretest-form">
               <div className="pretest-topic-header">
-                <h3>{isZh ? '2. 对AI在教育中的当前理解与态度' : '2. Current Understanding and Attitudes Towards AI in Education'}</h3>
+                <h3>{isZh ? '2. 任务负荷评价（NASA Task Load Index，简化版）' : '2. Task Load Assessment (NASA Task Load Index, simplified)'}</h3>
                 <p className="pretest-topic-intro">
                   {isZh
-                    ? '这些问题询问您当前对AI被应用在教育领域的看法，请您根据自己的实际体验和经验回答'
-                    : 'These questions ask about your current views on AI being applied in the field of education. Please answer based on your actual experience and knowledge.'}
+                    ? '请先填写您最常用的AI工具，然后基于该工具的使用体验来回答以下问题。请回想您在使用该工具进行「学习」时的体验。如果您想不起来具体的感受，可以现在打开该工具体验一下，然后再回来回答以下问题。请根据您的实际体验，评价下面几个维度（1=很低，5=很高）。'
+                    : 'Please first specify the AI tool you use most commonly, then answer the following questions based on your use of that tool. Please recall your experience when using that tool for learning. If you cannot recall the specific feelings, you can open that tool now to experience it, then come back to answer the following questions. Based on your actual experience, please rate the following dimensions (1 = Very Low, 5 = Very High).'}
                 </p>
                 <div className="pretest-topic-divider"></div>
               </div>
 
+              <div className="pretest-question">
+                <label htmlFor="aiTool">
+                  <strong>{isZh ? '您最常用的AI工具是什么？（例如：ChatGPT、Claude、GEMINI等）' : 'What is the AI tool you use most commonly? (e.g., ChatGPT, Claude, GEMINI, etc.)'}</strong>
+                </label>
+                <input
+                  id="aiTool"
+                  type="text"
+                  className="pretest-input"
+                  placeholder={isZh ? '请输入AI工具名称，例如：ChatGPT' : 'Please enter the AI tool name, e.g., ChatGPT'}
+                  value={form.aiTool || ''}
+                  onChange={(e) => handleChange('aiTool', e.target.value)}
+                />
+                <p style={{ fontSize: '0.9rem', color: '#4a5568', marginTop: '8px', fontStyle: 'italic' }}>
+                  {isZh ? '（以下问题请基于该工具的使用来回答）' : '(Please answer the following questions based on your use of this tool)'}
+                </p>
+              </div>
+
               {[
-                { 
-                  id: 'q4', 
-                  text: isZh 
-                    ? '在我看来，AI已经可以在一定程度上替代传统的教学解释（例如，解释知识点）。' 
-                    : 'In my view, AI can already, to some extent, replace traditional instructional explanations (e.g., explaining knowledge points).' 
+                {
+                  id: 'q4',
+                  text: isZh
+                    ? `在使用${form.aiTool || '该AI工具'}进行学习时，我需要投入的心理思考和注意力：`
+                    : `When using ${form.aiTool || 'this AI tool'} for learning, the mental effort and attention I needed to invest:`
                 },
-                { 
-                  id: 'q5', 
-                  text: isZh 
-                    ? '在我看来，AI更适合作为辅助工具，而不是完全替代人类教师。' 
-                    : 'In my view, AI is better suited as an auxiliary tool rather than a complete replacement for human teachers.' 
+                {
+                  id: 'q5',
+                  text: isZh
+                    ? `在使用${form.aiTool || '该AI工具'}进行学习时，我需要付出的身体操作和姿势调整：`
+                    : `When using ${form.aiTool || 'this AI tool'} for learning, the physical operations and posture adjustments I needed:`
                 },
-                { 
-                  id: 'q6', 
-                  text: isZh 
-                    ? '我目前认为AI可以为不同学生提供针对性的学习支持。' 
-                    : 'I currently believe that AI can provide targeted learning support tailored to the needs of different students.' 
+                {
+                  id: 'q6',
+                  text: isZh
+                    ? `在使用${form.aiTool || '该AI工具'}进行学习时，我感受到的时间紧迫感：`
+                    : `When using ${form.aiTool || 'this AI tool'} for learning, the time pressure I felt:`
                 },
-                { 
-                  id: 'q7', 
-                  text: isZh 
-                    ? '我对"将AI用于教育和评估"总体上持开放态度。' 
-                    : 'I am generally open-minded about "using AI for education and assessment".' 
+                {
+                  id: 'q7',
+                  text: isZh
+                    ? `在使用${form.aiTool || '该AI工具'}进行学习时，我需要付出的总体努力程度：`
+                    : `When using ${form.aiTool || 'this AI tool'} for learning, the overall effort I needed to put in:`
                 },
-                { 
-                  id: 'q8', 
-                  text: isZh 
-                    ? '我对AI在教育中的风险和局限性有相对清晰的理解。' 
-                    : 'I have a relatively clear understanding of the risks and limitations of AI in education.' 
+                {
+                  id: 'q8',
+                  text: isZh
+                    ? `在使用${form.aiTool || '该AI工具'}进行学习时，我对自己的表现感到满意的程度：`
+                    : `When using ${form.aiTool || 'this AI tool'} for learning, how satisfied I was with my own performance:`
+                },
+                {
+                  id: 'q9',
+                  text: isZh
+                    ? `在使用${form.aiTool || '该AI工具'}进行学习时，我感受到的挫败、紧张或烦躁程度：`
+                    : `When using ${form.aiTool || 'this AI tool'} for learning, the level of frustration, tension, or irritation I felt:`
                 }
               ].map(item => (
                 <div key={item.id} className="pretest-question">
                   <label><strong>{item.id.toUpperCase()}.</strong> {item.text}</label>
                   <div className="pretest-scale-options">
                     {[
-                      { val: 1, label: isZh ? '非常不同意' : 'Strongly Disagree' },
-                      { val: 2, label: isZh ? '不同意' : 'Disagree' },
-                      { val: 3, label: isZh ? '中立' : 'Neutral' },
-                      { val: 4, label: isZh ? '同意' : 'Agree' },
-                      { val: 5, label: isZh ? '非常同意' : 'Strongly Agree' }
+                      { val: 1, label: isZh ? '很低' : 'Very Low' },
+                      { val: 2, label: isZh ? '较低' : 'Low' },
+                      { val: 3, label: isZh ? '一般' : 'Moderate' },
+                      { val: 4, label: isZh ? '较高' : 'High' },
+                      { val: 5, label: isZh ? '很高' : 'Very High' }
                     ].map(({ val, label }) => (
                       <label key={val} className="pretest-scale-option">
                         <input

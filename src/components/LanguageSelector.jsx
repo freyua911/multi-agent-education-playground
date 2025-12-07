@@ -46,15 +46,15 @@ function LanguageSelector({ onSelect }) {
   const subtitleLines = selectedLanguage === 'zh'
     ? [
         '这是一个AI辅助教育平台的研究原型，这里会有不同的AI角色与你互动来共同完成你的学习目标。',
-        '收集的数据仅用于匿名的学术研究分析，不会用于商业目的。'
+        '请找一个自己最近想要学习的内容或者方向开始学习呀。'
       ]
     : [
         'This is a research prototype for an AI-assisted learning platform, where different AI roles will interact with you to support your learning goals.',
-        'Data are collected only for anonymised academic research analysis, not for commercial use.'
+        'Please find a topic you recently want to learn about and start learning.'
       ]
 
   const hintText = selectedLanguage === 'zh'
-    ? '输入昵称，阅读并同意隐私与知情同意说明，然后选择测试语言即可开始体验。在开始游戏前有个问卷需要请你填写，感谢～。'
+    ? '选择测试语言，输入昵称，阅读并同意隐私与知情同意说明后即可开始体验。在开始游戏前有个问卷需要请你填写哦～'
     : 'Enter your nickname, read and accept the Privacy & Consent information, then choose a language to begin. Please complete a questionnaire before starting the game. Thank you!'
 
   const handleConsentAccept = () => {

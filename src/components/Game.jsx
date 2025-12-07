@@ -194,7 +194,7 @@ function Game({ language, username }) {
   const handleRoleSelect = (role) => {
     // 切换角色时，不重置round start index，保持当前内容显示
     setCurrentRole(role)
-    setInputValue('')
+    // 保留输入内容，直到用户点击发送
     // 只有在第一次选择角色时才设置round start index
     if (currentRoundStartIndex === null) {
       setCurrentRoundStartIndex(gameLog.length)
