@@ -5,7 +5,8 @@ import { callDeepSeekAPIWithRole, evaluateAnswer, generateFeedback } from '../ut
 import { getTasksArray } from '../utils/tasks'
 import {
   clearConversationState,
-  exportConversationState,
+  exportGameConversation,
+  exportTestConversation,
   getConversationMessages,
   loadConversationState,
   saveConversationState,
@@ -70,6 +71,11 @@ function Test({ language, username }) {
   const averageScore = tasks.length
     ? tasks.reduce((sum, task) => sum + (task.points || 0), 0) / tasks.length
     : 0
+
+  useEffect(() => {
+    // 进入测试页即上传课堂阶段的对话
+    exportGameConversation().catch(err => console.error('Export game conversation on enter failed', err))
+  }, [])
 
   useEffect(() => {
     const stored = loadConversationState()
@@ -373,7 +379,7 @@ function Test({ language, username }) {
     if (allTasksCompleted && !isLoading) {
       const timer = setTimeout(async () => {
         const filename = language === 'zh' ? '学习对话记录.json' : 'conversation-history.json'
-        await exportConversationState(filename)
+        await exportTestConversation(filename)
         clearConversationState()
         navigate('/completion')
       }, 2000) // 延迟2秒后跳转，让用户看到完成状态
@@ -642,7 +648,7 @@ function Test({ language, username }) {
     }
 
     const filename = language === 'zh' ? '学习对话记录.json' : 'conversation-history.json'
-    const exported = await exportConversationState(filename)
+    const exported = await exportTestConversation(filename)
     if (!exported) {
       alert(language === 'zh'
         ? '暂无可以导出的对话记录。'

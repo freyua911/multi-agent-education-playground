@@ -7,6 +7,7 @@ import { getConversationMessages, getUnifiedConversationHistory } from '../utils
 import './MindMap.css'
 
 function MindMap({ language, username }) {
+  const MAX_HISTORY = 40
   const [conversation, setConversation] = useState(() => getConversationMessages() || [])
   const [isLoading, setIsLoading] = useState(false)
   const [graphCode, setGraphCode] = useState('')
@@ -26,7 +27,7 @@ function MindMap({ language, username }) {
 
   const fetchConversationHistory = useCallback(() => {
     // 使用统一对话历史
-    const messages = getUnifiedConversationHistory() || []
+    const messages = (getUnifiedConversationHistory() || []).slice(-MAX_HISTORY)
     setConversation(messages)
     return messages
   }, [])
@@ -103,6 +104,21 @@ function MindMap({ language, username }) {
       setIsLoading(false)
     }
   }, [fetchConversationHistory, language])
+
+  const handleSaveGraph = () => {
+    if (!graphSvg) return
+    try {
+      const blob = new Blob([graphSvg], { type: 'image/svg+xml' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `mindmap-${new Date().toISOString().replace(/[:.]/g, '-')}.svg`
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      setGraphError(language === 'zh' ? '保存失败，请稍后再试。' : 'Failed to save the mind map. Please try again.')
+    }
+  }
 
   const hintText = !conversation.length
     ? (language === 'zh'
@@ -191,6 +207,13 @@ function MindMap({ language, username }) {
             disabled={isLoading}
           >
             {language === 'zh' ? '生成' : 'Generate'}
+          </button>
+          <button
+            className="mindmap-action-btn"
+            onClick={handleSaveGraph}
+            disabled={!graphSvg}
+          >
+            {language === 'zh' ? '保存' : 'Save'}
           </button>
           <button
             className="mindmap-test-btn"

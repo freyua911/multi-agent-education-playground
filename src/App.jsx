@@ -10,6 +10,7 @@ import PreTest from './pages/PreTest'
 import PostTest from './pages/PostTest'
 import { resetTurnCount } from './utils/turnCounter'
 import { disableBrowserNavigation } from './utils/disableNavigation'
+import { sendBeaconOnUnload } from './utils/conversationStorage'
 
 function App() {
   const navigate = useNavigate()
@@ -30,6 +31,24 @@ function App() {
     const cleanup = disableBrowserNavigation()
     return cleanup
   }, [location.pathname])
+
+  // 在页面关闭/隐藏时自动尝试上报日志
+  useEffect(() => {
+    const handleUnload = () => sendBeaconOnUnload()
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        sendBeaconOnUnload()
+      }
+    }
+
+    window.addEventListener('beforeunload', handleUnload)
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [])
 
   // 保存语言和用户名到 localStorage
   useEffect(() => {

@@ -194,7 +194,7 @@ function PostTest({ language, username }) {
                 { 
                   id: 'q5', 
                   text: isZh 
-                    ? '我能够清楚地区分不同AI角色（教师、同伴、考官、评估者）的功能差异。' 
+                    ? '我能够清楚地区分不同AI角色（教师、同伴、考官、评估者）的角色差异。' 
                     : 'I could clearly distinguish the functional differences between the various AI roles (Teacher, Peer, Examiner, Evaluator).' 
                 },
                 { 

@@ -74,6 +74,40 @@ export const addToUnifiedLog = (entry) => {
   }
 }
 
+const postLogPayload = async (payload, filename, meta = {}) => {
+  if (!isBrowser()) return false
+  try {
+    const response = await fetch('/api/save-log', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        payload,
+        filename,
+        userId: meta?.username || null,
+        sessionId: meta?.sessionId || null,
+        meta: {
+          language: meta?.language || null,
+          version: meta?.version || 'v1',
+          ...meta
+        }
+      })
+    })
+
+    if (!response.ok) {
+      const text = await response.text()
+      console.error('Failed to save conversation log to server:', text)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('Failed to post conversation log to server', error)
+    return false
+  }
+}
+
 // 获取完整的对话历史（按时间排序）- 用于导出JSON，包含所有agent和用户的内容
 export const getUnifiedConversationHistory = () => {
   if (!isBrowser()) return []
@@ -216,35 +250,124 @@ export const exportConversationState = async (filename = 'conversation-history.j
     feedbackHistory: state.feedbackHistory || []
   }
 
-  try {
-    const response = await fetch('/api/save-log', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        payload,
-        // 这些字段供后端插入 Supabase 时使用（可选）
-        filename,
-        userId: state?.meta?.username || null,
-        sessionId: state?.meta?.sessionId || null,
-        meta: {
-          language: state?.meta?.language || null,
-          version: state?.meta?.version || 'v1'
-        }
-      })
+  return postLogPayload(payload, filename, state?.meta)
+}
+
+export const exportGameConversation = async (filename = 'classroom-history.json') => {
+  if (!isBrowser()) return false
+  const state = loadConversationState() || getDefaultState()
+  const gameLog = state.gameLog || []
+  if (!gameLog.length) return false
+
+  const meta = state.meta || {}
+  const lastCursor = meta.lastGameUploadCursor || 0
+  const mappedConversation = gameLog
+    .filter(entry =>
+      entry &&
+      (entry.type === 'user_message' || entry.type === 'assistant_message') &&
+      typeof entry.content === 'string'
+    )
+    .map(entry => {
+      let role = entry.type === 'user_message' ? 'user' : (entry.role || 'assistant')
+      if (entry.type === 'assistant_message' && entry.role && (entry.role === 'teacher' || entry.role === 'peer')) {
+        role = entry.role
+      } else if (entry.type === 'assistant_message') {
+        role = 'assistant'
+      }
+      return {
+        role: role,
+        content: entry.content,
+        timestamp: entry.timestamp || null,
+        speaker: entry.speaker || null,
+        partnerRole: entry.role || entry.targetRole || null
+      }
     })
 
-    if (!response.ok) {
-      const text = await response.text()
-      console.error('Failed to save conversation log to server:', text)
-      return false
-    }
+  if (mappedConversation.length <= lastCursor) return false
 
-    return true
+  const payload = {
+    generatedAt: new Date().toISOString(),
+    totalTurns: mappedConversation.length - lastCursor,
+    segment: 'classroom',
+    conversation: mappedConversation.slice(lastCursor)
+  }
+
+  const success = await postLogPayload(payload, filename, {
+    ...meta,
+    segment: 'classroom'
+  })
+
+  if (success) {
+    saveConversationState({
+      meta: {
+        ...meta,
+        lastGameUploadCursor: mappedConversation.length
+      }
+    })
+  }
+
+  return success
+}
+
+export const exportTestConversation = async (filename = 'test-history.json') => {
+  if (!isBrowser()) return false
+  const state = loadConversationState() || getDefaultState()
+  const testConversation = state.testConversation || []
+  const testHistory = state.testHistory || []
+  const feedbackHistory = state.feedbackHistory || []
+
+  if (!testConversation.length && !testHistory.length && !feedbackHistory.length) return false
+
+  const payload = {
+    generatedAt: new Date().toISOString(),
+    segment: 'test',
+    testConversation,
+    testHistory,
+    feedbackHistory
+  }
+
+  return postLogPayload(payload, filename, {
+    ...state.meta,
+    segment: 'test'
+  })
+}
+
+export const sendBeaconOnUnload = () => {
+  if (!isBrowser()) return
+  try {
+    const state = loadConversationState() || getDefaultState()
+    const payload = {
+      generatedAt: new Date().toISOString(),
+      segment: 'unload',
+      totalTurns: state.unifiedLog?.length || 0,
+      conversationHistory: getUnifiedConversationHistory()
+    }
+    const body = JSON.stringify({
+      payload,
+      filename: 'unload-log.json',
+      userId: state?.meta?.username || null,
+      sessionId: state?.meta?.sessionId || null,
+      meta: {
+        ...(state?.meta || {}),
+        segment: 'unload'
+      }
+    })
+
+    if (navigator.sendBeacon) {
+      const blob = new Blob([body], { type: 'application/json' })
+      navigator.sendBeacon('/api/save-log', blob)
+    } else {
+      fetch('/api/save-log', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body,
+        keepalive: true
+      })
+    }
   } catch (error) {
-    console.error('Failed to export conversation state to server', error)
-    return false
+    console.error('Failed to send unload log', error)
   }
 }
 
