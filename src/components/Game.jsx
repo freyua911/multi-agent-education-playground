@@ -6,7 +6,8 @@ import {
   loadConversationState,
   saveConversationState,
   addToUnifiedLog,
-  getContextConversationHistory
+  getContextConversationHistory,
+  exportGameConversation
 } from '../utils/conversationStorage'
 import { getTasksArray } from '../utils/tasks'
 import './Game.css'
@@ -153,6 +154,19 @@ function Game({ language, username }) {
     }
   }, [conversations, gameLog, tasks, language, username])
   
+  // 组件卸载时保存game对话记录
+  useEffect(() => {
+    return () => {
+      // 清理函数：组件卸载时保存game对话记录（保存完整记录）
+      if (gameLog.length > 0) {
+        const filename = language === 'zh' ? '课堂对话记录.json' : 'classroom-history.json'
+        exportGameConversation(filename, { forceFullExport: true }).catch(err => {
+          console.error('Failed to save game conversation on unmount:', err)
+        })
+      }
+    }
+  }, [gameLog.length, language])
+  
   // 监听storage变化，同步task得分
   useEffect(() => {
     const handleStorageChange = () => {
@@ -201,13 +215,24 @@ function Game({ language, username }) {
     }
   }
 
-  const handleStartTest = () => {
+  const handleStartTest = async () => {
     if (!canStartTest) {
       alert(language === 'zh'
         ? `请先完成至少 ${MIN_ROUNDS_FOR_TEST} 轮对话后再开始测试。当前已完成 ${completedRounds} 轮。`
         : `Please complete at least ${MIN_ROUNDS_FOR_TEST} conversation rounds before starting the test. Currently completed: ${completedRounds} rounds.`)
       return
     }
+    
+    // 在导航到测试页面前，先保存当前的game对话记录（保存完整记录）
+    try {
+      const filename = language === 'zh' ? '课堂对话记录.json' : 'classroom-history.json'
+      await exportGameConversation(filename, { forceFullExport: true })
+      console.log('Game conversation saved before navigating to test')
+    } catch (error) {
+      console.error('Failed to save game conversation before test:', error)
+      // 即使保存失败，也继续导航，但记录错误
+    }
+    
     navigate('/test')
   }
 

@@ -73,9 +73,27 @@ function Test({ language, username }) {
     : 0
 
   useEffect(() => {
-    // 进入测试页即上传课堂阶段的对话
-    exportGameConversation().catch(err => console.error('Export game conversation on enter failed', err))
-  }, [])
+    // 进入测试页即上传课堂阶段的对话（保存完整的game记录）
+    // 注意：这里保存的是进入test之前的game记录，每次保存完整记录
+    exportGameConversation(language === 'zh' ? '课堂对话记录.json' : 'classroom-history.json', { forceFullExport: true })
+      .catch(err => console.error('Export game conversation on enter failed', err))
+    
+    // 组件卸载时保存test对话记录
+    return () => {
+      const state = loadConversationState()
+      const testConversation = state?.testConversation || []
+      const testHistory = state?.testHistory || []
+      const feedbackHistory = state?.feedbackHistory || []
+      
+      // 如果有test数据，保存test记录
+      if (testConversation.length > 0 || testHistory.length > 0 || feedbackHistory.length > 0) {
+        const filename = language === 'zh' ? '测试对话记录.json' : 'test-history.json'
+        exportTestConversation(filename, { forceFullExport: true }).catch(err => {
+          console.error('Failed to save test conversation on unmount:', err)
+        })
+      }
+    }
+  }, [language])
 
   useEffect(() => {
     const stored = loadConversationState()
@@ -379,7 +397,7 @@ function Test({ language, username }) {
     if (allTasksCompleted && !isLoading) {
       const timer = setTimeout(async () => {
         const filename = language === 'zh' ? '学习对话记录.json' : 'conversation-history.json'
-        await exportTestConversation(filename)
+        await exportTestConversation(filename, { forceFullExport: true })
         clearConversationState()
         navigate('/completion')
       }, 2000) // 延迟2秒后跳转，让用户看到完成状态
@@ -648,7 +666,7 @@ function Test({ language, username }) {
     }
 
     const filename = language === 'zh' ? '学习对话记录.json' : 'conversation-history.json'
-    const exported = await exportTestConversation(filename)
+    const exported = await exportTestConversation(filename, { forceFullExport: true })
     if (!exported) {
       alert(language === 'zh'
         ? '暂无可以导出的对话记录。'
@@ -676,7 +694,18 @@ function Test({ language, username }) {
           <div className="test-score">
             {language === 'zh' ? '平均得分' : 'Average Score'}: {averageScore.toFixed(1)}/10
           </div>
-          <button className="nav-btn" onClick={() => navigate('/game')}>
+          <button className="nav-btn" onClick={async () => {
+            // 返回课堂前，先保存当前的test对话记录（保存完整记录）
+            try {
+              const filename = language === 'zh' ? '测试对话记录.json' : 'test-history.json'
+              await exportTestConversation(filename, { forceFullExport: true })
+              console.log('Test conversation saved before returning to game')
+            } catch (error) {
+              console.error('Failed to save test conversation before returning to game:', error)
+              // 即使保存失败，也继续导航
+            }
+            navigate('/game')
+          }}>
             {language === 'zh' ? '返回课堂' : 'Back'}
           </button>
           <button className="test-end-btn" onClick={handleEndSession}>

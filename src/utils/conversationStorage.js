@@ -253,14 +253,20 @@ export const exportConversationState = async (filename = 'conversation-history.j
   return postLogPayload(payload, filename, state?.meta)
 }
 
-export const exportGameConversation = async (filename = 'classroom-history.json') => {
+export const exportGameConversation = async (filename = 'classroom-history.json', options = {}) => {
   if (!isBrowser()) return false
   const state = loadConversationState() || getDefaultState()
   const gameLog = state.gameLog || []
   if (!gameLog.length) return false
 
   const meta = state.meta || {}
-  const lastCursor = meta.lastGameUploadCursor || 0
+  
+  // 默认使用完整保存模式（forceFullExport: true），每次保存完整的game记录
+  // 这样可以确保每次game session都是独立的记录
+  // 如果明确设置forceFullExport: false，则使用增量保存模式
+  const forceFullExport = options.forceFullExport !== false // 默认true
+  const lastCursor = forceFullExport ? 0 : (meta.lastGameUploadCursor || 0)
+  
   const mappedConversation = gameLog
     .filter(entry =>
       entry &&
@@ -279,25 +285,40 @@ export const exportGameConversation = async (filename = 'classroom-history.json'
         content: entry.content,
         timestamp: entry.timestamp || null,
         speaker: entry.speaker || null,
-        partnerRole: entry.role || entry.targetRole || null
+        partnerRole: entry.role || entry.targetRole || null,
+        type: entry.type || null
       }
     })
 
-  if (mappedConversation.length <= lastCursor) return false
+  // 如果使用增量保存且没有新内容，则不保存
+  if (!forceFullExport && mappedConversation.length <= lastCursor) return false
+
+  // 构建testHistory格式的对话记录（用于统一格式）
+  const testHistory = mappedConversation.slice(lastCursor).map(entry => ({
+    role: entry.role === 'user' ? 'user' : 'assistant',
+    type: entry.type === 'user_message' ? 'user' : 'assistant',
+    content: entry.content,
+    speaker: entry.speaker,
+    timestamp: entry.timestamp
+  }))
 
   const payload = {
     generatedAt: new Date().toISOString(),
     totalTurns: mappedConversation.length - lastCursor,
     segment: 'classroom',
-    conversation: mappedConversation.slice(lastCursor)
+    testHistory: testHistory, // 使用testHistory格式以保持一致性
+    conversation: mappedConversation.slice(lastCursor) // 保留原有字段以兼容
   }
 
   const success = await postLogPayload(payload, filename, {
     ...meta,
-    segment: 'classroom'
+    segment: 'classroom',
+    sessionType: 'game'
   })
 
-  if (success) {
+  // 如果保存成功且使用增量模式，更新cursor
+  // 如果使用完整保存模式，不更新cursor，这样下次保存时仍然保存完整记录
+  if (success && !forceFullExport) {
     saveConversationState({
       meta: {
         ...meta,
@@ -309,7 +330,7 @@ export const exportGameConversation = async (filename = 'classroom-history.json'
   return success
 }
 
-export const exportTestConversation = async (filename = 'test-history.json') => {
+export const exportTestConversation = async (filename = 'test-history.json', options = {}) => {
   if (!isBrowser()) return false
   const state = loadConversationState() || getDefaultState()
   const testConversation = state.testConversation || []
@@ -320,6 +341,7 @@ export const exportTestConversation = async (filename = 'test-history.json') => 
 
   const payload = {
     generatedAt: new Date().toISOString(),
+    totalTurns: testHistory.length,
     segment: 'test',
     testConversation,
     testHistory,
@@ -328,7 +350,8 @@ export const exportTestConversation = async (filename = 'test-history.json') => 
 
   return postLogPayload(payload, filename, {
     ...state.meta,
-    segment: 'test'
+    segment: 'test',
+    sessionType: 'test'
   })
 }
 
