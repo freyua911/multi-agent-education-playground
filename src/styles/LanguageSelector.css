@@ -36,8 +36,8 @@
 .language-selector-hint {
   margin: 0 auto 1rem auto;
   color: #777;
-  font-size: 0.95rem;
-  max-width: 420px;
+  font-size: 1.05rem; /* 0.95rem * 1.1 ≈ 1.05rem, 大一号 */
+  max-width: 546px; /* 420px * 1.3 = 546px */
 }
 
 .privacy-button {
@@ -105,7 +105,7 @@
 
 .name-input {
   width: 100%;
-  max-width: 420px;
+  max-width: 546px; /* 420px * 1.3 = 546px */
   padding: 0.9rem 1rem;
   border: 3px solid #6b4f37;
   border-radius: 0;
@@ -124,7 +124,7 @@
 
 .start-button {
   width: 100%;
-  max-width: 420px;
+  max-width: 546px; /* 420px * 1.3 = 546px */
   padding: 0.9rem 1rem;
   border: 3px solid #6b4f37;
   border-radius: 0;

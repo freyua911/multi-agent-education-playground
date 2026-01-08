@@ -1,4 +1,4 @@
-import './LanguageSelector.css'
+import '../styles/LanguageSelector.css'
 import { useState } from 'react'
 
 function LanguageSelector({ onSelect }) {
@@ -54,8 +54,8 @@ function LanguageSelector({ onSelect }) {
       ]
 
   const hintText = selectedLanguage === 'zh'
-    ? '选择测试语言，输入昵称，阅读并同意隐私与知情同意说明后即可开始体验。在开始游戏前有个问卷需要请你填写哦～'
-    : 'Enter your nickname, read and accept the Privacy & Consent information, then choose a language to begin. Please complete a questionnaire before starting the game. Thank you!'
+    ? '选择测试语言，输入昵称，阅读并同意隐私与知情同意说明后即可开始体验。在开始学习前有个问卷需要请你填写哦～'
+    : 'Enter your nickname, read and accept the Privacy & Consent information, then choose a language to begin. Please complete a survey before starting learning. Thank you!'
 
   const handleConsentAccept = () => {
     setConsentGiven(true)
@@ -109,7 +109,7 @@ function LanguageSelector({ onSelect }) {
               onClick={handleStartButtonClick}
               disabled={!username.trim() || !consentGiven}
             >
-              {selectedLanguage === 'zh' ? '进入游戏' : 'Enter Game'}
+              {selectedLanguage === 'zh' ? '开始学习' : 'Start Learning'}
             </button>
             <button
               type="button"
@@ -117,7 +117,7 @@ function LanguageSelector({ onSelect }) {
               onClick={handlePretestButtonClick}
               disabled={!username.trim() || !consentGiven}
             >
-              {selectedLanguage === 'zh' ? '前测问卷' : 'Pre-Test'}
+              {selectedLanguage === 'zh' ? '背景问卷' : 'Background Survey'}
             </button>
           </div>
           {error && <div className="name-error">{error}</div>}

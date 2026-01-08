@@ -7,16 +7,19 @@ import {
   saveConversationState,
   addToUnifiedLog,
   getContextConversationHistory,
-  exportGameConversation
+  exportGameConversation,
+  saveGameConversationRealTime,
+  saveGameConversationImmediate,
+  sendBeaconOnUnload
 } from '../utils/conversationStorage'
 import { getTasksArray } from '../utils/tasks'
-import './Game.css'
+import '../styles/Game.css'
 
 const MIN_ROUNDS_FOR_TEST = 3
 
 function Game({ language, username }) {
   const initialState = loadConversationState()
-  const [currentRole, setCurrentRole] = useState(null) // 'teacher' or 'peer'
+  const [currentRole, setCurrentRole] = useState(null)
   const [conversations, setConversations] = useState(() => initialState?.conversations || {
     teacher: [],
     peer: []
@@ -44,6 +47,12 @@ function Game({ language, username }) {
   const [isTaskInfoOpen, setIsTaskInfoOpen] = useState(false)
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false)
   const [isLibraryHintOpen, setIsLibraryHintOpen] = useState(false)
+  const [learningGoal, setLearningGoal] = useState(() => {
+    const state = loadConversationState()
+    return state?.learningGoal || ''
+  })
+  const [isEditingGoal, setIsEditingGoal] = useState(false)
+  const [tempGoal, setTempGoal] = useState('')
   const messagesEndRef = useRef(null)
   const navigate = useNavigate()
 
@@ -57,15 +66,12 @@ function Game({ language, username }) {
     return systemName
   }
 
-  // Calculate completed rounds (each assistant_message is one round)
   const completedRounds = gameLog.filter(entry => entry.type === 'assistant_message').length
-  const canStartTest = completedRounds >= MIN_ROUNDS_FOR_TEST
+  const canStartTest = learningGoal && learningGoal.trim() !== ''
+  const isInFirstThreeRounds = completedRounds < 3
 
-  // Get current round messages only (only the current round's messages)
-  // 每轮只显示：用户输入 + 对应agent的回复（只有一条）
   const conversationMessages = useMemo(() => {
     if (currentRoundStartIndex === null) return []
-    // 只获取从currentRoundStartIndex开始的消息（当前轮次）
     const roundMessages = []
     for (let i = currentRoundStartIndex; i < gameLog.length; i++) {
       const entry = gameLog[i]
@@ -106,18 +112,26 @@ function Game({ language, username }) {
   const closeLibraryHint = () => setIsLibraryHintOpen(false)
 
   const taskInfoText = language === 'zh'
-    ? '这里显示当前的测试结果。点击开始测试后，考官会基于测试的主题进行延展测试，如果发现自己回答不上来，请回到课堂继续学习讨论哦。'
-    : 'This shows your current test performance. After you tap Start Test, the examiner will extend the assessment based on your dialogue. If you feel stuck, return to the classroom and keep learning!'
+    ? '这里显示当前的测试结果。点击开始测试后，考官会基于测试的主题进行延展测试，如果发现自己回答不上来，请回到课堂继续学习讨论哦。test基于Bloom学习阶段来评估你的学习进展和成果。我们会围绕着你设置的学习主题来从不同阶段的指导和评估你的学习。'
+    : 'This shows your current test performance. After you tap Start Test, the examiner will extend the assessment based on your dialogue. If you feel stuck, return to the classroom and keep learning! Test is based on Bloom\'s learning stages to assess your learning progress and outcomes. We will guide and evaluate your learning from different stages around the learning topic you set.'
 
   const libraryHintText = language === 'zh'
     ? '点击按钮进入新房间，再次点击后可以退出。'
     : 'Tap the button to enter the new room; tap it again to exit.'
 
-  // 在组件挂载时检查localStorage状态，确保与组件状态同步
+  useEffect(() => {
+    const currentState = loadConversationState() || {}
+    if (learningGoal !== (currentState.learningGoal || '')) {
+      saveConversationState({
+        ...currentState,
+        learningGoal: learningGoal
+      })
+    }
+  }, [learningGoal])
+
   useEffect(() => {
     const currentState = loadConversationState()
     if (!currentState) {
-      // localStorage已被清空，重置所有状态
       if (conversations.teacher.length > 0 || conversations.peer.length > 0 || gameLog.length > 0) {
         setConversations({ teacher: [], peer: [] })
         setGameLog([])
@@ -126,14 +140,13 @@ function Game({ language, username }) {
         setCurrentRoundStartIndex(null)
       }
     }
-  }, []) // 只在挂载时执行一次，检查localStorage是否被清空
+  }, [])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [conversationMessages, isLoading])
 
   useEffect(() => {
-    // 只有在有实际内容时才保存，避免保存空状态覆盖清空操作
     if (conversations.teacher.length > 0 || conversations.peer.length > 0 || gameLog.length > 0) {
       const taskScores = {}
       tasks.forEach(task => {
@@ -146,28 +159,39 @@ function Game({ language, username }) {
         conversations,
         gameLog,
         taskScores: taskScores,
+        learningGoal: learningGoal,
         meta: {
           language,
           username
         }
       })
+      
+      saveGameConversationRealTime(3000)
     }
-  }, [conversations, gameLog, tasks, language, username])
+  }, [conversations, gameLog, tasks, language, username, learningGoal])
   
-  // 组件卸载时保存game对话记录
   useEffect(() => {
     return () => {
-      // 清理函数：组件卸载时保存game对话记录（保存完整记录）
       if (gameLog.length > 0) {
-        const filename = language === 'zh' ? '课堂对话记录.json' : 'classroom-history.json'
-        exportGameConversation(filename, { forceFullExport: true }).catch(err => {
+        saveGameConversationImmediate().catch(err => {
           console.error('Failed to save game conversation on unmount:', err)
         })
       }
     }
   }, [gameLog.length, language])
   
-  // 监听storage变化，同步task得分
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      sendBeaconOnUnload()
+    }
+    
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [])
+  
   useEffect(() => {
     const handleStorageChange = () => {
       const currentState = loadConversationState()
@@ -181,7 +205,6 @@ function Game({ language, username }) {
     }
     
     window.addEventListener('storage', handleStorageChange)
-    // 也检查当前标签页的storage变化（通过轮询）
     const interval = setInterval(() => {
       handleStorageChange()
     }, 1000)
@@ -206,10 +229,7 @@ function Game({ language, username }) {
   }
 
   const handleRoleSelect = (role) => {
-    // 切换角色时，设置新的round start index，这样会显示新的打招呼消息
     setCurrentRole(role)
-    // 保留输入内容，直到用户点击发送
-    // 每次选择角色时，如果当前轮次还没有消息，重置round start index以显示打招呼消息
     if (conversationMessages.length === 0) {
       setCurrentRoundStartIndex(gameLog.length)
     }
@@ -218,19 +238,17 @@ function Game({ language, username }) {
   const handleStartTest = async () => {
     if (!canStartTest) {
       alert(language === 'zh'
-        ? `请先完成至少 ${MIN_ROUNDS_FOR_TEST} 轮对话后再开始测试。当前已完成 ${completedRounds} 轮。`
-        : `Please complete at least ${MIN_ROUNDS_FOR_TEST} conversation rounds before starting the test. Currently completed: ${completedRounds} rounds.`)
+        ? '请先找到学习目标后再开始测试。'
+        : 'Please find your learning goal before starting the test.')
       return
     }
     
-    // 在导航到测试页面前，先保存当前的game对话记录（保存完整记录）
     try {
       const filename = language === 'zh' ? '课堂对话记录.json' : 'classroom-history.json'
       await exportGameConversation(filename, { forceFullExport: true })
       console.log('Game conversation saved before navigating to test')
     } catch (error) {
       console.error('Failed to save game conversation before test:', error)
-      // 即使保存失败，也继续导航，但记录错误
     }
     
     navigate('/test')
@@ -245,8 +263,6 @@ function Game({ language, username }) {
 
     if (!hasSentFirstMessage) setHasSentFirstMessage(true)
 
-    // 用户发送新内容时，清除前一轮的所有对话内容
-    // 重置round start index为当前gameLog长度，这样只显示新的一轮对话
     setCurrentRoundStartIndex(gameLog.length)
 
     const newUserMessage = {
@@ -261,7 +277,6 @@ function Game({ language, username }) {
     }
     setConversations(updatedConversations)
 
-    // 如果是本轮第一次与老师对话，则将学生当前的描述视为“考试主题”并写入 meta
     if (!hasSentFirstMessage && currentRole === 'teacher') {
       try {
         const currentState = loadConversationState() || {}
@@ -287,7 +302,6 @@ function Game({ language, username }) {
       content: userMessage
     })
 
-    // 添加到统一日志
     addToUnifiedLog({
       role: 'user',
       content: userMessage,
@@ -296,9 +310,37 @@ function Game({ language, username }) {
     })
 
     try {
-      // 获取上下文对话历史（只包含 teacher、peer、examiner、user、feedback，不包含 librarian、mindmap、evaluator）
+      if (isInFirstThreeRounds && !learningGoal && userMessage.length > 10) {
+        const goalPatterns = language === 'zh'
+          ? [
+              /(?:我想学习|我要学习|学习|了解|研究)(?:一下|关于)?\s*([^，,。！？\n]{5,50})/,
+              /(?:学习目标|目标是|我想|我要)(?:是|为)?\s*([^，,。！？\n]{5,50})/
+            ]
+          : [
+              /(?:I (?:want to|would like to|am interested in) (?:learn|study|understand|explore))(?:\s+about)?\s+([^,.!?\n]{5,50})/i,
+              /(?:learning goal|goal is|I want|I'd like)\s+(?:is|to)?\s*([^,.!?\n]{5,50})/i
+            ]
+        
+        for (const pattern of goalPatterns) {
+          const match = userMessage.match(pattern)
+          if (match && match[1]) {
+            const extractedGoal = match[1].trim()
+            if (extractedGoal.length > 5 && extractedGoal.length < 100) {
+              setLearningGoal(extractedGoal)
+              const currentState = loadConversationState() || {}
+              saveConversationState({
+                ...currentState,
+                learningGoal: extractedGoal
+              })
+              break
+            }
+          }
+        }
+      }
+      
       const contextHistory = getContextConversationHistory()
-      // 如果这是本轮对话的第一条用户消息，引导老师/同伴先给出更具体的方向选项
+      const shouldGuideLearningGoal = isInFirstThreeRounds && !learningGoal
+      
       const firstTurnSystemMessage = !hasSentFirstMessage
         ? [{
             role: 'system',
@@ -307,10 +349,29 @@ function Game({ language, username }) {
               : 'This is the first turn of the classroom conversation with the learner. First, propose 3–5 more specific directions (e.g., subtopics, difficulty levels, or application scenarios) that the learner could choose from, with one short sentence explaining the focus of each option. Then ask the learner to pick ONE direction to continue, instead of directly answering the question or giving a full explanation.'
           }]
         : []
+      
+      const learningGoalGuidanceMessage = shouldGuideLearningGoal
+        ? [{
+            role: 'system',
+            content: language === 'zh'
+              ? '这是前三轮对话中的一轮。你的重要任务是帮助学习者确定一个明确的学习目标。学习目标应该包括：1) 学习的主题（例如：机器学习），2) 主题下的具体细分方向（例如：老虎机算法）。请通过提问和引导，帮助学习者明确这两个方面，最终形成一句话的学习目标（例如："学习机器学习中的老虎机算法"）。如果学习者已经表达了明确的主题和细分方向，请总结为一句话的学习目标并确认。'
+              : 'This is one of the first three rounds of conversation. Your important task is to help the learner determine a clear learning goal. The learning goal should include: 1) The learning topic (e.g., Machine Learning), 2) A specific sub-direction within that topic (e.g., Multi-armed Bandit Algorithm). Please help the learner clarify these two aspects through questions and guidance, ultimately forming a one-sentence learning goal (e.g., "Learn about Multi-armed Bandit Algorithm in Machine Learning"). If the learner has already expressed a clear topic and sub-direction, please summarize it into a one-sentence learning goal and confirm.'
+          }]
+        : []
+      
+      const learningGoalMessage = learningGoal && !shouldGuideLearningGoal
+        ? [{
+            role: 'system',
+            content: language === 'zh'
+              ? `当前学习者的学习目标是：「${learningGoal}」。所有对话必须围绕这个学习目标展开。如果学生的话题偏离了学习目标，请温和地提醒学生回到学习目标相关的讨论上。`
+              : `The learner's current learning goal is: "${learningGoal}". All conversations must revolve around this learning goal. If the student's topic deviates from the learning goal, gently remind them to return to discussions related to the learning goal.`
+          }]
+        : []
 
-      // 构建消息：先包含“首轮引导”系统提示（若需要），再是上下文历史和当前对话
       const messages = [
         ...firstTurnSystemMessage,
+        ...learningGoalGuidanceMessage,
+        ...learningGoalMessage,
         ...contextHistory.map(msg => ({
           role: msg.role === 'teacher' || msg.role === 'peer' ? 'assistant' : msg.role,
           content: msg.content
@@ -341,13 +402,30 @@ function Game({ language, username }) {
         content: response
       })
 
-      // 添加到统一日志
       addToUnifiedLog({
-        role: currentRole, // 'teacher' 或 'peer'
+        role: currentRole,
         content: response,
         agentType: currentRole,
         speaker: currentRole === 'teacher' ? teacherName : peerName
       })
+      
+      if (shouldGuideLearningGoal && !learningGoal) {
+        const goalPattern = language === 'zh'
+          ? /(?:学习目标是|目标是|你的学习目标[是为]|我们[要来]学习|让我们[要来]学习)[：:：]?\s*([^。！？\n]+)/
+          : /(?:learning goal is|your learning goal is|let's (?:learn|focus on|study)|we (?:will|are going to) (?:learn|focus on|study))[：:：]?\s*([^.!?\n]+)/i
+        const match = response.match(goalPattern)
+        if (match && match[1]) {
+          const extractedGoal = match[1].trim()
+          if (extractedGoal.length > 5 && extractedGoal.length < 100) {
+            setLearningGoal(extractedGoal)
+            const currentState = loadConversationState() || {}
+            saveConversationState({
+              ...currentState,
+              learningGoal: extractedGoal
+            })
+          }
+        }
+      }
     } catch (error) {
       console.error('API Error:', error)
       alert(language === 'zh'
@@ -364,48 +442,170 @@ function Game({ language, username }) {
 
   const closeHistoryOverlay = () => setIsHistoryExpanded(false)
 
+  const handleGoalEdit = () => {
+    setTempGoal(learningGoal)
+    setIsEditingGoal(true)
+  }
+
+  const handleGoalSave = async () => {
+    const newGoal = tempGoal.trim()
+    if (newGoal && newGoal !== learningGoal) {
+      const oldGoal = learningGoal
+      setLearningGoal(newGoal)
+      setIsEditingGoal(false)
+      
+      const currentState = loadConversationState() || {}
+      saveConversationState({
+        ...currentState,
+        learningGoal: newGoal
+      })
+      
+      if (currentRole && !isLoading) {
+        setIsLoading(true)
+        try {
+          const transitionMessage = language === 'zh'
+            ? `你改变了学习目标，我们来聊聊新的话题吧。新的学习目标是：${newGoal}。让我们开始探索这个新主题。`
+            : `You've changed the learning goal. Let's talk about the new topic. The new learning goal is: ${newGoal}. Let's start exploring this new topic.`
+          
+          const transitionEntry = {
+            role: 'assistant',
+            content: transitionMessage,
+            timestamp: new Date().toISOString()
+          }
+          
+          setConversations(prev => ({
+            ...prev,
+            [currentRole]: [...prev[currentRole], transitionEntry]
+          }))
+          
+          addToGameLog({
+            type: 'assistant_message',
+            role: currentRole,
+            targetRole: currentRole,
+            speaker: currentRole === 'teacher' ? teacherName : peerName,
+            content: transitionMessage
+          })
+          
+          addToUnifiedLog({
+            role: currentRole,
+            content: transitionMessage,
+            agentType: currentRole,
+            speaker: currentRole === 'teacher' ? teacherName : peerName
+          })
+        } catch (error) {
+          console.error('Error generating transition message:', error)
+        } finally {
+          setIsLoading(false)
+        }
+      } else {
+        setIsEditingGoal(false)
+      }
+    } else {
+      setIsEditingGoal(false)
+    }
+  }
+
+  const handleGoalCancel = () => {
+    setTempGoal('')
+    setIsEditingGoal(false)
+  }
+
   return (
     <div className="game-container">
       <div className="game-top-bar">
         <div className="tasks-panel-top">
-          <div className="tasks-grid-top">
-            {tasks.map(task => {
-              const percentage = task.maxPoints
-                ? Math.min(100, ((task.points || 0) / task.maxPoints) * 100)
-                : 0
-              const scoreDisplay = Number.isFinite(task.points)
-                ? Number(task.points).toFixed(1).replace(/\.0$/, '')
-                : '0'
-
-              return (
-                <div key={task.id} className="task-item-top">
-                  <div className={`task-circle-top ${task.completed ? 'completed' : ''}`}>
-                    <svg className="task-progress-top" viewBox="0 0 100 100">
-                      <circle className="task-progress-bg-top" cx="50" cy="50" r="45" />
-                      <circle
-                        className="task-progress-bar-top"
-                        cx="50"
-                        cy="50"
-                        r="45"
-                        strokeDasharray={`${2 * Math.PI * 45}`}
-                        strokeDashoffset={`${2 * Math.PI * 45 * (1 - percentage / 100)}`}
-                      />
-                    </svg>
-                    <div className="task-score-top">{scoreDisplay}</div>
-                  </div>
-                  <div className="task-name-top">{task.name}</div>
-                </div>
-              )
-            })}
+          <div className="learning-goal-container">
+            {isEditingGoal ? (
+              <div className="learning-goal-edit">
+                <input
+                  type="text"
+                  className="learning-goal-input"
+                  value={tempGoal}
+                  onChange={(e) => setTempGoal(e.target.value)}
+                  placeholder={language === 'zh' ? '请输入学习目标' : 'Enter learning goal'}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleGoalSave()
+                    } else if (e.key === 'Escape') {
+                      handleGoalCancel()
+                    }
+                  }}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  className="learning-goal-save-btn"
+                  onClick={handleGoalSave}
+                >
+                  {language === 'zh' ? '保存' : 'Save'}
+                </button>
+                <button
+                  type="button"
+                  className="learning-goal-cancel-btn"
+                  onClick={handleGoalCancel}
+                >
+                  {language === 'zh' ? '取消' : 'Cancel'}
+                </button>
+              </div>
+            ) : (
+              <div className="learning-goal-display">
+                <span className="learning-goal-label">
+                  {language === 'zh' ? '学习目标：' : 'Learning Goal: '}
+                </span>
+                <span className="learning-goal-text">
+                  {learningGoal || (language === 'zh' ? '（未设置）' : '(Not set)')}
+                </span>
+                <button
+                  type="button"
+                  className="learning-goal-edit-btn"
+                  onClick={handleGoalEdit}
+                  title={language === 'zh' ? '编辑学习目标' : 'Edit learning goal'}
+                >
+                  {language === 'zh' ? '编辑' : 'Edit'}
+                </button>
+              </div>
+            )}
           </div>
-          <button
-            type="button"
-            className="task-info-btn"
-            onClick={() => setIsTaskInfoOpen(true)}
-            aria-label={language === 'zh' ? '查看测试说明' : 'View test info'}
-          >
-            ?
-          </button>
+          <div className="tasks-row-container">
+            <div className="tasks-grid-top">
+              {tasks.map(task => {
+                const percentage = task.maxPoints
+                  ? Math.min(100, ((task.points || 0) / task.maxPoints) * 100)
+                  : 0
+                const scoreDisplay = Number.isFinite(task.points)
+                  ? Number(task.points).toFixed(1).replace(/\.0$/, '')
+                  : '0'
+
+                return (
+                  <div key={task.id} className="task-item-top">
+                    <div className={`task-circle-top ${task.completed ? 'completed' : ''}`}>
+                      <svg className="task-progress-top" viewBox="0 0 100 100">
+                        <circle className="task-progress-bg-top" cx="50" cy="50" r="36" />
+                        <circle
+                          className="task-progress-bar-top"
+                          cx="50"
+                          cy="50"
+                          r="36"
+                          strokeDasharray={`${2 * Math.PI * 36}`}
+                          strokeDashoffset={`${2 * Math.PI * 36 * (1 - percentage / 100)}`}
+                        />
+                      </svg>
+                      <div className="task-score-top">{scoreDisplay}</div>
+                    </div>
+                    <div className="task-name-top">{task.name}</div>
+                  </div>
+                )
+              })}
+            </div>
+            <button
+              type="button"
+              className="task-info-btn"
+              onClick={() => setIsTaskInfoOpen(true)}
+              aria-label={language === 'zh' ? '查看测试说明' : 'View test info'}
+            >
+              ?
+            </button>
+          </div>
         </div>
         <div className="history-panel-top">
           <div className="history-title-row">
@@ -454,7 +654,6 @@ function Game({ language, username }) {
 
       <div className="conversation-area">
         <div className="messages-display">
-          {/* 左侧：老师 */}
           <div className="message-column message-column-teacher">
             <div className="message-column-content">
               {currentRole === 'teacher' && conversationMessages.length === 0 && (
@@ -488,7 +687,6 @@ function Game({ language, username }) {
             </div>
           </div>
 
-          {/* 中间：用户 */}
           <div className="message-column message-column-user">
             <div className="message-column-content">
               {currentRole && conversationMessages.map((entry, index) => {
@@ -506,7 +704,6 @@ function Game({ language, username }) {
             </div>
           </div>
 
-          {/* 右侧：同伴 */}
           <div className="message-column message-column-peer">
             <div className="message-column-content">
               {currentRole === 'peer' && conversationMessages.length === 0 && (
@@ -555,7 +752,7 @@ function Game({ language, username }) {
               className={`role-btn ${currentRole === 'teacher' ? 'active' : ''}`}
               onClick={() => handleRoleSelect('teacher')}
             >
-              {language === 'zh' ? '👨‍🏫 老师' : '👨‍🏫 Teacher'}
+              {language === 'zh' ? '老师' : 'Teacher'}
             </button>
             <button
               type="button"
@@ -571,7 +768,7 @@ function Game({ language, username }) {
               className={`role-btn ${currentRole === 'peer' ? 'active' : ''}`}
               onClick={() => handleRoleSelect('peer')}
             >
-              {language === 'zh' ? '👥 同伴' : '👥 Peer'}
+              {language === 'zh' ? '同伴' : 'Peer'}
             </button>
             <button
               type="button"

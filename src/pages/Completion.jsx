@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom'
-import './Completion.css'
+import '../styles/Completion.css'
 
 function Completion({ language, username }) {
   const navigate = useNavigate()

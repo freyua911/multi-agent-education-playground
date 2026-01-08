@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import { callDeepSeekAPIWithRole } from '../utils/api'
 import { getUnifiedConversationHistory, addToUnifiedLog } from '../utils/conversationStorage'
-import './Library.css'
+import '../styles/Library.css'
 
 function Library({ language, username }) {
   const [summary, setSummary] = useState('')

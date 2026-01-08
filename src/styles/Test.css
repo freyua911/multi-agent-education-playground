@@ -335,6 +335,50 @@
   padding: 30px;
 }
 
+/* 评估中状态容器 */
+.evaluation-status-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid #6b4f37;
+  border-radius: 8px;
+  margin: 20px 0;
+  gap: 20px;
+}
+
+/* 评估中旋转动画 */
+.evaluation-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #6b4f37;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.evaluation-status-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #6b4f37;
+  text-align: center;
+}
+
+.evaluation-hint {
+  font-size: 0.9rem;
+  color: #666;
+  text-align: center;
+  font-style: italic;
+  max-width: 500px;
+}
+
 .test-input-row {
   display: flex;
   gap: 10px;
@@ -583,6 +627,128 @@
 
   .tasks-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* 层级选择弹窗样式 */
+.level-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.level-modal-content {
+  background: white;
+  border: 3px solid #2d3748;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 800px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.level-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.level-modal-header h3 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #1a202c;
+}
+
+.level-modal-close {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #718096;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.level-modal-close:hover {
+  color: #2d3748;
+}
+
+.level-modal-body {
+  padding: 0;
+}
+
+.level-modal-hint {
+  margin: 0 0 20px 0;
+  color: #4a5568;
+  font-size: 1rem;
+}
+
+.level-buttons-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.level-button {
+  background: white;
+  border: 2px solid #cbd5e0;
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.level-button:hover {
+  border-color: #4299e1;
+  background: #ebf8ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(66, 153, 225, 0.2);
+}
+
+.level-button.active {
+  border-color: #2b6cb0;
+  background: #bee3f8;
+  box-shadow: 0 4px 12px rgba(43, 108, 176, 0.3);
+}
+
+.level-button-name {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: #1a202c;
+  margin-bottom: 8px;
+}
+
+.level-button-desc {
+  font-size: 0.9rem;
+  color: #4a5568;
+}
+
+@media (max-width: 768px) {
+  .level-buttons-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .level-modal-content {
+    width: 95%;
+    padding: 16px;
   }
 }
 

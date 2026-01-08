@@ -8,6 +8,8 @@ const getDefaultState = () => ({
   taskScores: {},
   feedbackHistory: [],
   unifiedLog: [], // 统一的对话日志，按时间顺序记录所有agent和用户的消息
+  testCount: 0, // 测试次数
+  testGoal: '', // 测试目标
   meta: {}
 })
 
@@ -43,6 +45,8 @@ export const saveConversationState = (stateUpdates) => {
       taskScores: stateUpdates?.taskScores ?? existing.taskScores ?? defaults.taskScores,
       feedbackHistory: stateUpdates?.feedbackHistory ?? existing.feedbackHistory ?? defaults.feedbackHistory,
       unifiedLog: stateUpdates?.unifiedLog ?? existing.unifiedLog ?? defaults.unifiedLog,
+      testCount: stateUpdates?.testCount !== undefined ? stateUpdates.testCount : (existing.testCount ?? defaults.testCount),
+      testGoal: stateUpdates?.testGoal !== undefined ? stateUpdates.testGoal : (existing.testGoal ?? defaults.testGoal),
       meta: stateUpdates?.meta ?? existing.meta ?? defaults.meta
     }
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
@@ -355,39 +359,343 @@ export const exportTestConversation = async (filename = 'test-history.json', opt
   })
 }
 
-export const sendBeaconOnUnload = () => {
+// 防抖定时器，用于实时保存
+let gameSaveTimer = null
+let testSaveTimer = null
+
+// 实时保存课堂对话记录到后台（使用防抖，分离保存）
+export const saveGameConversationRealTime = (debounceMs = 3000) => {
   if (!isBrowser()) return
+  
+  // 清除之前的定时器
+  if (gameSaveTimer) {
+    clearTimeout(gameSaveTimer)
+  }
+  
+  // 设置新的定时器
+  gameSaveTimer = setTimeout(async () => {
+    try {
+      const state = loadConversationState() || getDefaultState()
+      const gameLog = state.gameLog || []
+      
+      if (!gameLog.length) return
+      
+      const meta = state.meta || {}
+      const mappedConversation = gameLog
+        .filter(entry =>
+          entry &&
+          (entry.type === 'user_message' || entry.type === 'assistant_message') &&
+          typeof entry.content === 'string'
+        )
+        .map(entry => {
+          let role = entry.type === 'user_message' ? 'user' : (entry.role || 'assistant')
+          if (entry.type === 'assistant_message' && entry.role && (entry.role === 'teacher' || entry.role === 'peer')) {
+            role = entry.role
+          } else if (entry.type === 'assistant_message') {
+            role = 'assistant'
+          }
+          return {
+            role: role,
+            content: entry.content,
+            timestamp: entry.timestamp || null,
+            speaker: entry.speaker || null,
+            partnerRole: entry.role || entry.targetRole || null,
+            type: entry.type || null
+          }
+        })
+      
+      const testHistory = mappedConversation.map(entry => ({
+        role: entry.role === 'user' ? 'user' : 'assistant',
+        type: entry.type === 'user_message' ? 'user' : 'assistant',
+        content: entry.content,
+        speaker: entry.speaker,
+        timestamp: entry.timestamp
+      }))
+      
+      const payload = {
+        generatedAt: new Date().toISOString(),
+        totalTurns: mappedConversation.length,
+        segment: 'classroom',
+        testHistory: testHistory,
+        conversation: mappedConversation,
+        learningGoal: state.learningGoal || '',
+        isRealTime: true // 标记为实时保存
+      }
+      
+      const filename = `${meta?.username || 'user'}-classroom-${new Date().toISOString().split('T')[0]}.json`
+      await postLogPayload(payload, filename, {
+        ...meta,
+        segment: 'classroom',
+        sessionType: 'game'
+      })
+      
+      console.log('Game conversation saved in real-time')
+    } catch (error) {
+      console.error('Failed to save game conversation in real-time:', error)
+    }
+  }, debounceMs)
+}
+
+// 实时保存测试对话记录到后台（使用防抖，分离保存）
+export const saveTestConversationRealTime = (debounceMs = 3000) => {
+  if (!isBrowser()) return
+  
+  // 清除之前的定时器
+  if (testSaveTimer) {
+    clearTimeout(testSaveTimer)
+  }
+  
+  // 设置新的定时器
+  testSaveTimer = setTimeout(async () => {
+    try {
+      const state = loadConversationState() || getDefaultState()
+      const testConversation = state.testConversation || []
+      const testHistory = state.testHistory || []
+      const feedbackHistory = state.feedbackHistory || []
+      
+      if (!testConversation.length && !testHistory.length && !feedbackHistory.length) return
+      
+      const payload = {
+        generatedAt: new Date().toISOString(),
+        totalTurns: testHistory.length,
+        segment: 'test',
+        testConversation,
+        testHistory,
+        feedbackHistory,
+        testCount: state.testCount || 0,
+        testGoal: state.testGoal || '',
+        isRealTime: true // 标记为实时保存
+      }
+      
+      const meta = state.meta || {}
+      const filename = `${meta?.username || 'user'}-test-${new Date().toISOString().split('T')[0]}.json`
+      await postLogPayload(payload, filename, {
+        ...meta,
+        segment: 'test',
+        sessionType: 'test'
+      })
+      
+      console.log('Test conversation saved in real-time')
+    } catch (error) {
+      console.error('Failed to save test conversation in real-time:', error)
+    }
+  }, debounceMs)
+}
+
+// 立即保存（不等待防抖），用于页面关闭前
+export const saveGameConversationImmediate = async () => {
+  if (gameSaveTimer) {
+    clearTimeout(gameSaveTimer)
+    gameSaveTimer = null
+  }
+  
   try {
     const state = loadConversationState() || getDefaultState()
+    const gameLog = state.gameLog || []
+    
+    if (!gameLog.length) return true
+    
+    const meta = state.meta || {}
+    const mappedConversation = gameLog
+      .filter(entry =>
+        entry &&
+        (entry.type === 'user_message' || entry.type === 'assistant_message') &&
+        typeof entry.content === 'string'
+      )
+      .map(entry => {
+        let role = entry.type === 'user_message' ? 'user' : (entry.role || 'assistant')
+        if (entry.type === 'assistant_message' && entry.role && (entry.role === 'teacher' || entry.role === 'peer')) {
+          role = entry.role
+        } else if (entry.type === 'assistant_message') {
+          role = 'assistant'
+        }
+        return {
+          role: role,
+          content: entry.content,
+          timestamp: entry.timestamp || null,
+          speaker: entry.speaker || null,
+          partnerRole: entry.role || entry.targetRole || null,
+          type: entry.type || null
+        }
+      })
+    
+    const testHistory = mappedConversation.map(entry => ({
+      role: entry.role === 'user' ? 'user' : 'assistant',
+      type: entry.type === 'user_message' ? 'user' : 'assistant',
+      content: entry.content,
+      speaker: entry.speaker,
+      timestamp: entry.timestamp
+    }))
+    
     const payload = {
       generatedAt: new Date().toISOString(),
-      segment: 'unload',
-      totalTurns: state.unifiedLog?.length || 0,
-      conversationHistory: getUnifiedConversationHistory()
+      totalTurns: mappedConversation.length,
+      segment: 'classroom',
+      testHistory: testHistory,
+      conversation: mappedConversation,
+      learningGoal: state.learningGoal || '',
+      isRealTime: false,
+      isUnload: true // 标记为页面关闭前保存
     }
-    const body = JSON.stringify({
-      payload,
-      filename: 'unload-log.json',
-      userId: state?.meta?.username || null,
-      sessionId: state?.meta?.sessionId || null,
-      meta: {
-        ...(state?.meta || {}),
-        segment: 'unload'
-      }
+    
+    const filename = `${meta?.username || 'user'}-classroom-${new Date().toISOString().split('T')[0]}.json`
+    return await postLogPayload(payload, filename, {
+      ...meta,
+      segment: 'classroom',
+      sessionType: 'game'
     })
+  } catch (error) {
+    console.error('Failed to save game conversation immediately:', error)
+    return false
+  }
+}
 
-    if (navigator.sendBeacon) {
-      const blob = new Blob([body], { type: 'application/json' })
-      navigator.sendBeacon('/api/save-log', blob)
-    } else {
-      fetch('/api/save-log', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body,
-        keepalive: true
+// 立即保存测试记录（不等待防抖），用于页面关闭前
+export const saveTestConversationImmediate = async () => {
+  if (testSaveTimer) {
+    clearTimeout(testSaveTimer)
+    testSaveTimer = null
+  }
+  
+  try {
+    const state = loadConversationState() || getDefaultState()
+    const testConversation = state.testConversation || []
+    const testHistory = state.testHistory || []
+    const feedbackHistory = state.feedbackHistory || []
+    
+    if (!testConversation.length && !testHistory.length && !feedbackHistory.length) return true
+    
+    const payload = {
+      generatedAt: new Date().toISOString(),
+      totalTurns: testHistory.length,
+      segment: 'test',
+      testConversation,
+      testHistory,
+      feedbackHistory,
+      testCount: state.testCount || 0,
+      testGoal: state.testGoal || '',
+      isRealTime: false,
+      isUnload: true // 标记为页面关闭前保存
+    }
+    
+    const meta = state.meta || {}
+    const filename = `${meta?.username || 'user'}-test-${new Date().toISOString().split('T')[0]}.json`
+    return await postLogPayload(payload, filename, {
+      ...meta,
+      segment: 'test',
+      sessionType: 'test'
+    })
+  } catch (error) {
+    console.error('Failed to save test conversation immediately:', error)
+    return false
+  }
+}
+
+// 使用 sendBeacon 在页面关闭前保存（分离保存课堂和测试记录）
+export const sendBeaconOnUnload = () => {
+  if (!isBrowser()) return
+  
+  try {
+    // 保存课堂对话记录
+    const state = loadConversationState() || getDefaultState()
+    const gameLog = state.gameLog || []
+    
+    if (gameLog.length > 0) {
+      const meta = state.meta || {}
+      const mappedConversation = gameLog
+        .filter(entry =>
+          entry &&
+          (entry.type === 'user_message' || entry.type === 'assistant_message') &&
+          typeof entry.content === 'string'
+        )
+        .map(entry => {
+          let role = entry.type === 'user_message' ? 'user' : (entry.role || 'assistant')
+          if (entry.type === 'assistant_message' && entry.role && (entry.role === 'teacher' || entry.role === 'peer')) {
+            role = entry.role
+          } else if (entry.type === 'assistant_message') {
+            role = 'assistant'
+          }
+          return {
+            role: role,
+            content: entry.content,
+            timestamp: entry.timestamp || null,
+            speaker: entry.speaker || null,
+            partnerRole: entry.role || entry.targetRole || null,
+            type: entry.type || null
+          }
+        })
+      
+      const testHistory = mappedConversation.map(entry => ({
+        role: entry.role === 'user' ? 'user' : 'assistant',
+        type: entry.type === 'user_message' ? 'user' : 'assistant',
+        content: entry.content,
+        speaker: entry.speaker,
+        timestamp: entry.timestamp
+      }))
+      
+      const gamePayload = {
+        generatedAt: new Date().toISOString(),
+        totalTurns: mappedConversation.length,
+        segment: 'classroom',
+        testHistory: testHistory,
+        conversation: mappedConversation,
+        learningGoal: state.learningGoal || '',
+        isUnload: true
+      }
+      
+      const gameBody = JSON.stringify({
+        payload: gamePayload,
+        filename: `${meta?.username || 'user'}-classroom-unload.json`,
+        userId: meta?.username || null,
+        sessionId: meta?.sessionId || null,
+        meta: {
+          ...meta,
+          segment: 'classroom',
+          sessionType: 'game'
+        }
       })
+      
+      if (navigator.sendBeacon) {
+        const blob = new Blob([gameBody], { type: 'application/json' })
+        navigator.sendBeacon('/api/save-log', blob)
+      }
+    }
+    
+    // 保存测试对话记录
+    const testConversation = state.testConversation || []
+    const testHistory = state.testHistory || []
+    const feedbackHistory = state.feedbackHistory || []
+    
+    if (testConversation.length > 0 || testHistory.length > 0 || feedbackHistory.length > 0) {
+      const meta = state.meta || {}
+      const testPayload = {
+        generatedAt: new Date().toISOString(),
+        totalTurns: testHistory.length,
+        segment: 'test',
+        testConversation,
+        testHistory,
+        feedbackHistory,
+        testCount: state.testCount || 0,
+        testGoal: state.testGoal || '',
+        isUnload: true
+      }
+      
+      const testBody = JSON.stringify({
+        payload: testPayload,
+        filename: `${meta?.username || 'user'}-test-unload.json`,
+        userId: meta?.username || null,
+        sessionId: meta?.sessionId || null,
+        meta: {
+          ...meta,
+          segment: 'test',
+          sessionType: 'test'
+        }
+      })
+      
+      if (navigator.sendBeacon) {
+        const blob = new Blob([testBody], { type: 'application/json' })
+        navigator.sendBeacon('/api/save-log', blob)
+      }
     }
   } catch (error) {
     console.error('Failed to send unload log', error)

@@ -4,7 +4,7 @@ import Viz from 'viz.js'
 import { Module, render } from 'viz.js/full.render.js'
 import { callDeepSeekAPIWithRole } from '../utils/api'
 import { getConversationMessages, getUnifiedConversationHistory } from '../utils/conversationStorage'
-import './MindMap.css'
+import '../styles/MindMap.css'
 
 function MindMap({ language, username }) {
   const MAX_HISTORY = 40

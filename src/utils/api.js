@@ -10,13 +10,15 @@ export const ROLE_PROMPTS = {
 2. 允许适度反问以澄清上下文，目的必须是帮助学生更好地表达，而非考核。
 3. 当学生提到"考试/评分/考官/Bloom 测试"等需求时，温和提醒他们点击界面上的「开始测试」，让考官负责评估流程。
 4. 每次输出控制在 1-2 段、150-180 字以内，保持温和、鼓励、对话式的语气，结尾可邀请学生继续追问。
-5. 面对跨学科或开放性问题，可以先承认不确定性，再分享自己掌握的线索或建议学生如何找到更多资料。`,
+5. 面对跨学科或开放性问题，可以分享自己掌握的线索或建议学生如何找到更多资料。
+6. **重要：所有对话必须围绕着学生的学习目标展开。如果学生的话题偏离了学习目标，请温和地提醒学生回到学习目标相关的讨论上。**`,
     en: `You are a supportive classroom teacher whose sole responsibility is to answer the student's questions.
 1. Listen carefully and respond directly; feel free to break concepts into steps, offer analogies, or share short examples, but do not initiate quizzes or give scores.
 2. Light clarifying questions are allowed only to understand the student's intent; never to test them.
 3. If the student asks for tests, scores, Bloom tasks, or an examiner, politely remind them to click "Start Test" so the examiner agent can handle assessments.
 4. Keep each reply to 1-2 short paragraphs (under ~120 words), warm in tone, and end by inviting follow-up questions when helpful.
-5. When uncertain, explain what you do know and suggest how the student might explore further, maintaining an encouraging attitude.`
+5. Explain what you do know and suggest how the student might explore further, maintaining an encouraging attitude.
+6. **Important: All conversations must revolve around the student's learning goal. If the student's topic deviates from the learning goal, gently remind them to return to discussions related to the learning goal.**`
   },
   
   examiner: {
@@ -136,12 +138,14 @@ export const ROLE_PROMPTS = {
 1. 如果学生对你提问，绝对不能直接给出大量的解答，而是应该给出一个自己的猜想或假设，或者抛出一个新的疑问或者针对该问题的进一步扩展问题让学生思考。
 2. 如果学生只是陈述观点或思路，先表态"我认可/不太认可"并给出简短理由，然后提出一个反问或延伸问题继续引导。
 3. 你也是学生，因此面对问题不能给出明确具体的答案；重点是分享自己多维的思考来激发对方分析与自我验证。对于问题可以提示学生说：我也不清楚，我们可以去问问老师呢。
-4. 语气平等、放松，可以分享自己的困惑或学习心得来拉近距离。`,
+4. 语气平等、放松，可以分享自己的困惑或学习心得来拉近距离。
+5. **重要：所有对话必须围绕着学生的学习目标展开。如果学生的话题偏离了学习目标，请温和地提醒学生回到学习目标相关的讨论上。**`,
     en: `You are a learning peer whose job is to nudge the student's thinking instead of solving problems outright. Follow these rules:
 1. When the student asks you a question, admit "I'm not totally sure either," offer a tentative guess, and follow up with a new question that invites their reasoning.
 2. When the student simply makes a statement, say whether you agree or not (briefly explain why), then ask a probing or reflective question to keep them thinking.
 3. Remember you're also a student who doesn't know every answer, so focus on sharing multi-angle speculations rather than definitive solutions; spark their analysis and self-checking.
-4. Keep the tone equal, relaxed, and candid—share your own doubts or learning tips to stay relatable.`
+4. Keep the tone equal, relaxed, and candid—share your own doubts or learning tips to stay relatable.
+5. **Important: All conversations must revolve around the student's learning goal. If the student's topic deviates from the learning goal, gently remind them to return to discussions related to the learning goal.**`
   },
   
   librarian: {
@@ -719,16 +723,35 @@ export const callDeepSeekAPIWithRole = async (messages, role, language, currentL
   return callDeepSeekAPI(apiMessages)
 }
 
-export const evaluateAnswer = async (question, answer, taskLevel, language) => {
+export const evaluateAnswer = async (question, answer, taskLevel, language, previousResults = null) => {
   const promptBuilders = EVALUATOR_PROMPT_BUILDERS[language] || EVALUATOR_PROMPT_BUILDERS.en
   const taskLevelLabel = getBloomLabel(taskLevel, language)
   const evaluatorResults = []
+
+  // 如果有之前的评估结果，添加偏差提示
+  const varianceWarning = previousResults ? (() => {
+    const prevScores = previousResults.map(r => r.rawScore)
+    const prevAvg = prevScores.reduce((sum, s) => sum + s, 0) / prevScores.length
+    const prevVariance = prevScores.reduce((sum, s) => {
+      const diff = s - prevAvg
+      return sum + (diff * diff)
+    }, 0) / prevScores.length
+    
+    return language === 'zh'
+      ? `\n\n【重要提示】之前的评估中，三个评估者的打分存在较大偏差（方差：${prevVariance.toFixed(3)}，大于1）。请仔细重新评估，确保打分更加一致和客观。以下是之前的评估结果供参考：\n${previousResults.map((r, idx) => `${getEvaluatorLabel(language, idx)}: ${r.rawScore.toFixed(1)}/10 - ${r.feedback}`).join('\n')}\n\n请重新评估，确保打分更加一致。`
+      : `\n\n【Important Notice】In the previous evaluation, there was significant variance (${prevVariance.toFixed(3)}, > 1) among the three evaluators' scores. Please carefully re-evaluate to ensure more consistent and objective scoring. Below are the previous evaluation results for reference:\n${previousResults.map((r, idx) => `${getEvaluatorLabel(language, idx)}: ${r.rawScore.toFixed(1)}/10 - ${r.feedback}`).join('\n')}\n\nPlease re-evaluate to ensure more consistent scoring.`
+  })() : ''
 
   // 使用三个不同的评估器进行并行评估
   for (let i = 0; i < promptBuilders.length; i++) {
     const buildPrompt = promptBuilders[i]
     // 评估者A会自己生成标准答案，其他评估者不需要标准答案
-    const promptContent = buildPrompt({ question, answer, taskLevelLabel, taskLevel })
+    let promptContent = buildPrompt({ question, answer, taskLevelLabel, taskLevel })
+    
+    // 如果有之前的评估结果，添加偏差提示
+    if (varianceWarning) {
+      promptContent += varianceWarning
+    }
 
     try {
       // 通过后端代理调用 DeepSeek，避免在前端暴露 API Key
@@ -763,6 +786,17 @@ export const evaluateAnswer = async (question, answer, taskLevel, language) => {
     ? evaluatorResults.reduce((sum, item) => sum + item.rawScore, 0) / evaluatorResults.length
     : 0
 
+  // 计算方差
+  const variance = evaluatorResults.length > 1
+    ? evaluatorResults.reduce((sum, item) => {
+        const diff = item.rawScore - averageRawScore
+        return sum + (diff * diff)
+      }, 0) / evaluatorResults.length
+    : 0
+
+  // 可信度参数：如果方差 > 1，则为1（需要重新评估），否则为0（可信）
+  const credibility = variance > 1 ? 1 : 0
+
   const finalScore = Number(averageRawScore.toFixed(1))
 
   // 生成组合反馈
@@ -780,11 +814,59 @@ export const evaluateAnswer = async (question, answer, taskLevel, language) => {
     feedback: combinedFeedback,
     details: evaluatorResults,
     averageRawScore: Number(averageRawScore.toFixed(2)),
+    variance: Number(variance.toFixed(3)),
+    credibility, // 可信度参数：1表示需要重新评估，0表示可信
     taskLevelLabel
   }
 }
 
-export const generateFeedback = async (evaluatorResults, language, currentLevel = 'remember') => {
+export const generateFeedback = async (evaluatorResults, language, currentLevel = 'remember', variance = 0, credibility = 0, question = '', answer = '', taskLevel = 'remember') => {
+  // 如果可信度为1（方差>1），要求评估者重新打分，而不是总结反馈
+  if (credibility === 1) {
+    const taskLevelLabel = getBloomLabel(taskLevel, language)
+    const evaluatorSummary = evaluatorResults.map((result, index) => {
+      const formattedScore = Number.isFinite(result.rawScore)
+        ? result.rawScore.toFixed(1)
+        : '0'
+      return language === 'zh'
+        ? `评估者${String.fromCharCode(65 + index)}: 得分 ${formattedScore}/10，反馈：${result.feedback}`
+        : `Evaluator ${String.fromCharCode(65 + index)}: Score ${formattedScore}/10, Feedback: ${result.feedback}`
+    }).join('\n\n')
+    
+    // 动态导入上下文历史函数（避免循环依赖）
+    const { getContextConversationHistory } = await import('./conversationStorage')
+    
+    // 获取上下文对话历史（只包含 teacher、peer、examiner、user、feedback）
+    const contextHistory = getContextConversationHistory()
+    
+    // 构建消息：告诉评估者他们的打分有偏差，需要重新打分
+    const messages = [
+      // 添加上下文对话历史
+      ...contextHistory.map(msg => ({
+        role: msg.role === 'teacher' || msg.role === 'peer' || msg.role === 'examiner' || msg.role === 'feedback'
+          ? 'assistant'
+          : msg.role,
+        content: msg.content
+      })),
+      {
+        role: 'user',
+        content: language === 'zh'
+          ? `检测到三个评估者的打分存在较大偏差（方差为${variance.toFixed(3)}，大于1）。以下是当前的评分和反馈：\n\n${evaluatorSummary}\n\n问题：「${question}」\n学生回答：「${answer}」\n评估层级：${taskLevelLabel}\n\n请三位评估者重新仔细评估，确保打分更加一致。请重新输出评分和反馈。`
+          : `Detected significant variance (${variance.toFixed(3)}, > 1) among the three evaluators' scores. Below are the current scores and feedback:\n\n${evaluatorSummary}\n\nQuestion: "${question}"\nStudent Answer: "${answer}"\nEvaluation Level: ${taskLevelLabel}\n\nPlease ask the three evaluators to re-evaluate more carefully to ensure more consistent scoring. Please re-output the scores and feedback.`
+      }
+    ]
+    
+    // 这里返回一个特殊标记，表示需要重新评估
+    return {
+      needsReevaluation: true,
+      variance,
+      message: language === 'zh'
+        ? `评估者打分偏差较大（方差：${variance.toFixed(3)}），正在要求重新评估...`
+        : `Evaluator scores show significant variance (${variance.toFixed(3)}), requesting re-evaluation...`
+    }
+  }
+  
+  // 如果可信度为0（方差<=1），正常总结反馈
   const feedbackPrompt = getRolePrompt('feedback', language, currentLevel)
   
   // 动态导入上下文历史函数（避免循环依赖）
@@ -829,7 +911,8 @@ export const generateFeedback = async (evaluatorResults, language, currentLevel 
       const parsed = JSON.parse(jsonMatch[0])
       return {
         score: clampScore(parsed.score ?? 0),
-        feedback: parsed.feedback || response
+        feedback: parsed.feedback || response,
+        needsReevaluation: false
       }
     } catch (error) {
       // 如果解析失败，使用原始响应
@@ -843,6 +926,7 @@ export const generateFeedback = async (evaluatorResults, language, currentLevel 
   
   return {
     score: clampScore(averageScore),
-    feedback: response
+    feedback: response,
+    needsReevaluation: false
   }
 }

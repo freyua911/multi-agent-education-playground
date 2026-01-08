@@ -11,9 +11,12 @@ import {
   loadConversationState,
   saveConversationState,
   addToUnifiedLog,
-  getContextConversationHistory
+  getContextConversationHistory,
+  saveTestConversationRealTime,
+  saveTestConversationImmediate,
+  sendBeaconOnUnload
 } from '../utils/conversationStorage'
-import './Test.css'
+import '../styles/Test.css'
 
 const QUESTION_MARKERS = ['?', '？', '吗', '呢', 'what', 'how', 'why', 'which', 'who', 'when', 'where']
 
@@ -41,6 +44,18 @@ function Test({ language, username }) {
   const [conversation, setConversation] = useState([])
   const [history, setHistory] = useState([])
   const [feedbackHistory, setFeedbackHistory] = useState([])
+  // 测试次数：每当考官成功出完一道题（无论用户是否回答/反馈），就+1
+  const [testCount, setTestCount] = useState(() => {
+    const stored = loadConversationState()
+    return stored?.testCount || 0
+  })
+  // 测试目标：一句话的测试目标，考官出题时需要结合该目标
+  const [testGoal, setTestGoal] = useState(() => {
+    const stored = loadConversationState()
+    return stored?.testGoal || ''
+  })
+  const [isEditingTestGoal, setIsEditingTestGoal] = useState(false)
+  const [tempTestGoal, setTempTestGoal] = useState('')
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [currentQuestion, setCurrentQuestion] = useState(null)
@@ -52,13 +67,24 @@ function Test({ language, username }) {
   // 使用 useRef 来同步存储 previousQuestion，避免异步更新问题
   const previousQuestionRef = useRef(null)
   const previousTaskLevelRef = useRef(null)
-  // 当前测试进度level，初始值为1（remember）
-  const [currentTestLevel, setCurrentTestLevel] = useState('remember')
+  // 当前测试进度level，初始值为null（等待用户选择）
+  const [currentTestLevel, setCurrentTestLevel] = useState(null)
   // 当前这一轮评估已经完成，等待用户选择“再来一个问题 / 进入下一层级”
   const [awaitingNextAction, setAwaitingNextAction] = useState(false)
   const [endConfirmPending, setEndConfirmPending] = useState(false)
   const [copyNoticeVisible, setCopyNoticeVisible] = useState(false)
   const [testStateLoaded, setTestStateLoaded] = useState(false)
+  // 评估中状态：用于显示等待动画，用户可以返回课堂继续学习
+  const [isEvaluating, setIsEvaluating] = useState(false)
+  const [evaluationStatus, setEvaluationStatus] = useState('') // 评估状态信息
+  // 测试流程阶段：'greeting' | 'asking_topic' | 'asking_dimension' | 'selecting_level' | 'testing'
+  const [testPhase, setTestPhase] = useState('greeting')
+  // 用户选择的测试主题
+  const [selectedTopic, setSelectedTopic] = useState(null)
+  // 层级选择弹窗显示状态
+  const [showLevelModal, setShowLevelModal] = useState(false)
+  // 左侧任务圆圈当前选中的测试层级（用户点击选择）
+  const [selectedLevel, setSelectedLevel] = useState(null)
   const copyNoticeTimer = useRef(null)
   const messagesEndRef = useRef(null)
   const feedbackEndRef = useRef(null)
@@ -111,11 +137,17 @@ function Test({ language, username }) {
     setCurrentQuestion(null)
     setCurrentTaskLevel(null)
     setPendingEvaluation(false)
-    // 如果localStorage中没有保存的currentTestLevel，初始化为remember
-    if (!stored?.currentTestLevel) {
-      setCurrentTestLevel('remember')
-    } else {
+    // 如果localStorage中有保存的currentTestLevel，恢复它和测试阶段
+    if (stored?.currentTestLevel) {
       setCurrentTestLevel(stored.currentTestLevel)
+      setTestPhase('testing')
+    } else {
+      // 如果没有保存，说明是新的测试，从greeting开始
+      setCurrentTestLevel(null)
+      setTestPhase('greeting')
+    }
+    if (stored?.selectedTopic) {
+      setSelectedTopic(stored.selectedTopic)
     }
   }, [language])
 
@@ -139,6 +171,12 @@ function Test({ language, username }) {
     }
     if (stored?.currentTestLevel) {
       setCurrentTestLevel(stored.currentTestLevel)
+    }
+    if (typeof stored?.testCount === 'number') {
+      setTestCount(stored.testCount)
+    }
+    if (stored?.testGoal) {
+      setTestGoal(stored.testGoal)
     }
     setTestStateLoaded(true)
   }, [])
@@ -165,13 +203,47 @@ function Test({ language, username }) {
       testHistory: history,
       feedbackHistory: feedbackHistory,
       taskScores: taskScores,
-      currentTestLevel: currentTestLevel
+      currentTestLevel: currentTestLevel,
+      selectedTopic: selectedTopic,
+      testCount,
+      testGoal
     })
-  }, [conversation, history, feedbackHistory, tasks, testStateLoaded, currentTestLevel])
+    
+    // 实时保存测试对话记录到后台（使用防抖，分离保存）
+    if (conversation.length > 0 || history.length > 0 || feedbackHistory.length > 0) {
+      saveTestConversationRealTime(3000) // 3秒防抖
+    }
+  }, [conversation, history, feedbackHistory, tasks, testStateLoaded, currentTestLevel, testCount, testGoal])
 
   useEffect(() => {
     return () => {
       clearTimeout(copyNoticeTimer.current)
+    }
+  }, [])
+  
+  // 组件卸载时立即保存测试对话记录
+  useEffect(() => {
+    return () => {
+      // 清理函数：组件卸载时立即保存测试对话记录
+      const state = loadConversationState()
+      if (state && (state.testConversation?.length > 0 || state.testHistory?.length > 0 || state.feedbackHistory?.length > 0)) {
+        saveTestConversationImmediate().catch(err => {
+          console.error('Failed to save test conversation on unmount:', err)
+        })
+      }
+    }
+  }, [conversation.length, history.length, feedbackHistory.length])
+  
+  // 页面关闭前使用 sendBeacon 保存
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      sendBeaconOnUnload()
+    }
+    
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
     }
   }, [])
 
@@ -307,11 +379,19 @@ function Test({ language, username }) {
   const askExaminerQuestion = async (targetLevel, baseConversation = null) => {
     // targetLevel：希望考官使用的层级；如果未指定则默认 currentTestLevel
     const levelToUse = targetLevel || currentTestLevel
+    if (!levelToUse) {
+      console.error('askExaminerQuestion: 没有指定层级')
+      setIsLoading(false)
+      return
+    }
+    // 设置测试阶段为testing
+    setTestPhase('testing')
     try {
       setIsLoading(true)
       // 从全局对话状态中读取学生在课堂中声明的考试主题（如果有）
       const state = loadConversationState() || {}
       const examTopic = state?.meta?.examTopic || null
+      const storedTestGoal = state?.testGoal || testGoal || null
       // 获取上下文对话历史，并过滤为“课堂对话”：只保留 teacher / peer / user
       // 不包含 feedback agent 的总结，也不包含之前考官的问答，避免考官复述反馈或旧题目
       const rawContextHistory = getContextConversationHistory()
@@ -322,13 +402,22 @@ function Test({ language, username }) {
       // 使用传入的对话（通常包含最新一条用户消息），否则使用当前 state 中的对话
       const displayConversation = (baseConversation || conversation).filter(entry => entry.role !== 'system')
       const apiMessages = [
-        // 如果有考试主题，先以 system 形式明确传递给考官
-        ...(examTopic
+        // 如果有考试主题（来自课堂或测试阶段选择），先以 system 形式明确传递给考官
+        ...((examTopic || selectedTopic)
           ? [{
               role: 'system',
               content: language === 'zh'
-                ? `学生在课堂对话中已经明确了本次想要被测试的主题（考试主题）：「${examTopic}」。你在出题和提问时必须始终围绕这个主题展开，不要跳出这一主题。`
-                : `In the classroom conversation, the learner has already specified the desired exam topic: "${examTopic}". All of your test questions must stay closely aligned with this topic and should not drift away from it.`
+                ? `学生在测试阶段已经明确了本次想要被测试的主题（考试主题）：「${examTopic || selectedTopic}」。你在出题和提问时必须始终围绕这个主题展开，不要跳出这一主题。`
+                : `In the test phase, the learner has already specified the desired exam topic: "${examTopic || selectedTopic}". All of your test questions must stay closely aligned with this topic and should not drift away from it.`
+            }]
+          : []),
+        // 如果有测试目标，以 system 形式明确传递给考官
+        ...(storedTestGoal
+          ? [{
+              role: 'system',
+              content: language === 'zh'
+                ? `学生当前明确的测试目标是：「${storedTestGoal}」。请你在出题和提问时始终围绕这一测试目标设计问题，不要偏离该目标。`
+                : `The learner's current explicit test goal is: "${storedTestGoal}". Please design all your questions strictly around this test goal and do not drift away from it.`
             }]
           : []),
         // 添加上下文对话历史作为上下文
@@ -380,6 +469,8 @@ function Test({ language, username }) {
 
       // 记录当前问题（为下一次用户回答做准备）
       detectQuestionFromAssistant(questionText || displayText || response)
+      // 每成功出一道题，测试次数+1（无论用户是否回答或收到反馈）
+      setTestCount(prev => prev + 1)
       // 进入“等待用户回答本题”的状态
       setAwaitingNextAction(false)
     } catch (error) {
@@ -441,6 +532,24 @@ function Test({ language, username }) {
       speaker: username
     })
 
+    // 处理测试流程的不同阶段
+    if (testPhase === 'greeting') {
+      // 第一次交互，考官先打招呼
+      setIsLoading(false)
+      await handleExaminerGreeting()
+      return
+    } else if (testPhase === 'asking_topic') {
+      // 用户回答了主题，保存主题并询问维度
+      setSelectedTopic(userMessage)
+      setIsLoading(false)
+      await handleExaminerAskDimension(userMessage)
+      return
+    } else if (testPhase === 'selecting_level') {
+      // 用户正在选择层级，不应该通过输入框处理
+      setIsLoading(false)
+      return
+    }
+
     // 评估逻辑：检查用户是否在回答考官的问题
     // 方法：优先使用 previousQuestionRef（同步访问），如果不存在则使用 previousQuestion（state），最后从 conversation 中查找
     // 使用 ref 可以立即访问，避免 React state 异步更新的问题
@@ -484,18 +593,73 @@ function Test({ language, username }) {
       try {
         console.log('开始评估，问题:', questionToEvaluate, '任务级别:', taskLevelToEvaluate, '当前测试层级:', currentTestLevel)
         const taskMeta = tasks.find(task => task.id === taskLevelToEvaluate)
-        // 获取三个评估者的结果，使用currentTestLevel作为评估标准
-        const evaluation = await evaluateAnswer(
+        
+        // 循环评估直到方差<=1
+        let evaluation = null
+        let feedbackResult = null
+        let previousEvaluationDetails = null
+        let attemptCount = 0
+        const maxAttempts = 5 // 最多尝试5次，避免无限循环
+        
+        setIsEvaluating(true)
+        setEvaluationStatus(language === 'zh' ? '正在评估中...' : 'Evaluating...')
+        
+        do {
+          attemptCount++
+          if (attemptCount > 1) {
+            setEvaluationStatus(language === 'zh' 
+              ? `评估者打分偏差较大（方差：${evaluation.variance?.toFixed(3) || 'N/A'}），正在重新评估... (第${attemptCount}次尝试)`
+              : `Evaluator scores show significant variance (${evaluation.variance?.toFixed(3) || 'N/A'}), re-evaluating... (Attempt ${attemptCount})`)
+          }
+          
+          // 获取三个评估者的结果，使用currentTestLevel作为评估标准
+          // 如果之前有评估结果且方差>1，在评估时加入偏差提示
+          evaluation = await evaluateAnswer(
+            questionToEvaluate,
+            userMessage,
+            currentTestLevel, // 使用currentTestLevel作为评估标准
+            language,
+            previousEvaluationDetails // 传入之前的评估结果，让评估者知道需要重新评估
+          )
+          console.log('评估结果 (尝试', attemptCount, '):', evaluation)
+          
+          // 如果方差>1，需要重新评估
+          if (evaluation.credibility === 1 && attemptCount < maxAttempts) {
+            previousEvaluationDetails = evaluation.details
+            // 继续循环，重新评估
+            continue
+          }
+          
+          // 如果方差<=1或达到最大尝试次数，退出循环
+          break
+        } while (evaluation.credibility === 1 && attemptCount < maxAttempts)
+        
+        // 调用反馈agent综合三个评估者的输出，传递currentTestLevel
+        feedbackResult = await generateFeedback(
+          evaluation.details, 
+          language, 
+          currentTestLevel,
+          evaluation.variance || 0,
+          evaluation.credibility || 0,
           questionToEvaluate,
           userMessage,
-          currentTestLevel, // 使用currentTestLevel作为评估标准
-          language
+          currentTestLevel
         )
-        console.log('评估结果:', evaluation)
-
-        // 调用反馈agent综合三个评估者的输出，传递currentTestLevel
-        const feedbackResult = await generateFeedback(evaluation.details, language, currentTestLevel)
         console.log('反馈结果:', feedbackResult)
+
+        // 如果反馈结果需要重新评估（这不应该发生，因为我们已经在上面循环了）
+        if (feedbackResult.needsReevaluation) {
+          setEvaluationStatus(language === 'zh' 
+            ? '评估者需要重新打分，请稍候...'
+            : 'Evaluators need to re-score, please wait...')
+          setIsEvaluating(false)
+          setIsLoading(false)
+          // 这里可以选择重新触发评估流程，或者直接返回错误
+          alert(language === 'zh'
+            ? '评估过程中出现问题，请稍后重试。'
+            : 'An error occurred during evaluation. Please try again later.')
+          return
+        }
 
         // 更新得分，使用currentTestLevel对应的task
         const currentTaskMeta = tasks.find(task => task.id === currentTestLevel)
@@ -510,6 +674,9 @@ function Test({ language, username }) {
           evaluators: evaluation.details || [],
           // 三位评估者的原始平均分
           averageRawScore: evaluation.averageRawScore,
+          // 方差和可信度
+          variance: evaluation.variance || 0,
+          credibility: evaluation.credibility || 0,
           // 反馈 agent 综合后的总结性反馈
           summary: feedbackResult.feedback,
           timestamp: new Date().toISOString()
@@ -546,6 +713,8 @@ function Test({ language, username }) {
           setCurrentTaskLevel(null)
         }
         setPendingEvaluation(false)
+        setIsEvaluating(false)
+        setEvaluationStatus('')
 
         // 本轮评估流程结束，等待用户在反馈框中选择下一步
         setAwaitingNextAction(true)
@@ -564,8 +733,12 @@ function Test({ language, username }) {
       console.log('警告：没有任务级别，无法触发评估。questionToEvaluate:', questionToEvaluate, 'taskLevelToEvaluate:', taskLevelToEvaluate)
     }
 
-    // 如果没有检测到需要评估的问题（例如，用户是打招呼），则让考官根据当前层级出题
-    await askExaminerQuestion(currentTestLevel, workingConversation)
+    // 如果没有检测到需要评估的问题，且当前测试阶段是testing，则让考官根据当前层级出题
+    if (testPhase === 'testing' && currentTestLevel) {
+      await askExaminerQuestion(currentTestLevel, workingConversation)
+    } else {
+      setIsLoading(false)
+    }
   }
 
   // 反馈面板中的“再来一个问题”：保持当前层级不变，让考官在该层级再出一道题
@@ -575,18 +748,41 @@ function Test({ language, username }) {
   }
 
   // 反馈面板中的“进入下一层级”：层级+1，再让考官在新层级出题
-  const handleGoToNextLevel = async () => {
+  // 左侧“开始测试”按钮：基于当前选中的层级和测试目标，请考官出题
+  const handleStartTestClick = async () => {
     if (isLoading || allTasksCompleted) return
-    const levelOrder = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create']
-    const currentIndex = levelOrder.indexOf(currentTestLevel)
-    if (currentIndex < 0 || currentIndex >= levelOrder.length - 1) {
-      // 已经是最高层级，无法再前进
+    if (!selectedLevel) {
+      alert(language === 'zh'
+        ? '请先在左侧选择一个想要测试的层级。'
+        : 'Please select a level on the left before starting the test.')
       return
     }
-    const nextLevel = levelOrder[currentIndex + 1]
-    setCurrentTestLevel(nextLevel)
-    await askExaminerQuestion(nextLevel)
+    if (!testGoal || !testGoal.trim()) {
+      alert(language === 'zh'
+        ? '请先在“测试目标”中填写或确认本次测试的目标，然后再开始测试。'
+        : 'Please set or confirm your test goal before starting the test.')
+      return
+    }
+    setCurrentTestLevel(selectedLevel)
+    await askExaminerQuestion(selectedLevel)
   }
+
+  const handleTestGoalEdit = () => {
+    setTempTestGoal(testGoal)
+    setIsEditingTestGoal(true)
+  }
+
+  const handleTestGoalSave = () => {
+    const trimmed = (tempTestGoal || '').trim()
+    setTestGoal(trimmed)
+    setIsEditingTestGoal(false)
+  }
+
+  const handleTestGoalCancel = () => {
+    setIsEditingTestGoal(false)
+    setTempTestGoal('')
+  }
+
 
   const renderMessage = (entry, index) => {
     const roleClass = entry.role === 'assistant'
@@ -736,8 +932,14 @@ function Test({ language, username }) {
                   ? Number(task.points).toFixed(1).replace(/\.0$/, '')
                   : '0'
 
+                const isSelected = selectedLevel === task.id
+
                 return (
-                  <div key={task.id} className="task-item">
+                  <div
+                    key={task.id}
+                    className={`task-item ${isSelected ? 'selected' : ''}`}
+                    onClick={() => setSelectedLevel(task.id)}
+                  >
                     <div className={`task-circle ${task.completed ? 'completed' : ''}`}>
                       <svg className="task-progress" viewBox="0 0 100 100">
                         <circle className="task-progress-bg" cx="50" cy="50" r="45" />
@@ -757,6 +959,16 @@ function Test({ language, username }) {
                 )
               })}
             </div>
+            <div className="task-start-footer">
+              <button
+                type="button"
+                className="task-start-btn"
+                disabled={isLoading || allTasksCompleted || !selectedLevel}
+                onClick={handleStartTestClick}
+              >
+                {language === 'zh' ? '开始测试' : 'Start Test'}
+              </button>
+            </div>
           </section>
           <section className="test-panel bloom-intro-panel">
             <div className="bloom-intro-box">
@@ -771,6 +983,60 @@ function Test({ language, username }) {
         </div>
 
         <section className="test-panel test-chat-panel">
+          {/* 测试目标显示区：固定在考官对话框上方，可编辑 */}
+          <div className="test-goal-container">
+            {isEditingTestGoal ? (
+              <div className="test-goal-edit">
+                <label className="test-goal-label">
+                  {language === 'zh' ? '测试目标：' : 'Test Goal: '}
+                </label>
+                <input
+                  type="text"
+                  className="test-goal-input"
+                  value={tempTestGoal}
+                  onChange={(e) => setTempTestGoal(e.target.value)}
+                  placeholder={language === 'zh'
+                    ? '请用一句话描述你希望被测试的具体目标…'
+                    : 'Describe in one sentence what you want to be tested on…'}
+                />
+                <button
+                  type="button"
+                  className="test-goal-save-btn"
+                  onClick={handleTestGoalSave}
+                >
+                  {language === 'zh' ? '保存' : 'Save'}
+                </button>
+                <button
+                  type="button"
+                  className="test-goal-cancel-btn"
+                  onClick={handleTestGoalCancel}
+                >
+                  {language === 'zh' ? '取消' : 'Cancel'}
+                </button>
+              </div>
+            ) : (
+              <div className="test-goal-display">
+                <span className="test-goal-label">
+                  {language === 'zh' ? '测试目标：' : 'Test Goal: '}
+                </span>
+                <span className="test-goal-text">
+                  {testGoal || (language === 'zh' ? '（未设置）' : '(Not set)')}
+                </span>
+                <button
+                  type="button"
+                  className="test-goal-edit-btn"
+                  onClick={handleTestGoalEdit}
+                >
+                  {language === 'zh' ? '编辑' : 'Edit'}
+                </button>
+                <span className="test-count-text">
+                  {language === 'zh'
+                    ? `测试次数：${testCount}`
+                    : `Test count: ${testCount}`}
+                </span>
+              </div>
+            )}
+          </div>
           <div className="panel-header">
             <h2>{language === 'zh' ? '考官对话' : 'Examiner Chat'}</h2>
             {currentTaskLevel && (
@@ -782,19 +1048,32 @@ function Test({ language, username }) {
             )}
           </div>
           <div className="test-chat-feed">
-            {conversation.length === 0 && (
+            {conversation.length === 0 && testPhase === 'greeting' && (
               <div className="test-empty-tip">
                 {language === 'zh'
-                  ? '向考官打个招呼，他会按照 Bloom 层级来引导你。'
-                  : 'Say hello to the examiner to begin the Bloom-level journey.'}
+                  ? '向考官打个招呼，他会询问你想测试的主题和维度。'
+                  : 'Say hello to the examiner, and they will ask about the topic and dimension you want to test.'}
               </div>
             )}
             {conversation.map(renderMessage)}
-            {isLoading && (
+            {isLoading && !isEvaluating && (
               <div className="test-message assistant">
                 <div className="test-message-role">{examinerName}</div>
                 <div className="test-message-content thinking">
                   {language === 'zh' ? '分析中…' : 'Analyzing…'}
+                </div>
+              </div>
+            )}
+            {isEvaluating && (
+              <div className="evaluation-status-container">
+                <div className="evaluation-spinner"></div>
+                <div className="evaluation-status-text">
+                  {evaluationStatus || (language === 'zh' ? '正在评估中，请稍候...' : 'Evaluating, please wait...')}
+                </div>
+                <div className="evaluation-hint">
+                  {language === 'zh' 
+                    ? '评估过程可能需要一些时间，您可以返回课堂继续学习对话。' 
+                    : 'The evaluation process may take some time. You can return to the classroom to continue learning conversations.'}
                 </div>
               </div>
             )}
@@ -867,27 +1146,8 @@ function Test({ language, username }) {
                       {entry.summary || entry.feedback}
                     </div>
 
-                    {/* 只有最新一条反馈时显示控制按钮，始终允许用户选择下一步（评估过程中按钮会被禁用） */}
-                    {isLatest && !allTasksCompleted && (
-                      <div className="test-feedback-actions">
-                        <button
-                          type="button"
-                          className="test-feedback-btn"
-                          disabled={isLoading}
-                          onClick={handleAskAnotherQuestion}
-                        >
-                          {language === 'zh' ? '再来一个问题' : 'Another question'}
-                        </button>
-                        <button
-                          type="button"
-                          className="test-feedback-btn primary"
-                          disabled={isLoading}
-                          onClick={handleGoToNextLevel}
-                        >
-                          {language === 'zh' ? '进入下一层级' : 'Next level'}
-                        </button>
-                      </div>
-                    )}
+                    {/* 按照最新需求：反馈展示后不再在右侧展示“再来一个问题 / 切换层级”按钮。
+                        用户只可以在左侧选择测试层级，并点击“开始测试”按钮让考官出题。 */}
                   </div>
                 )
               })
@@ -901,6 +1161,42 @@ function Test({ language, username }) {
           {language === 'zh'
             ? '已复制，请在测试完成后查看链接'
             : 'Link copied. Please review it after finishing the test.'}
+        </div>
+      )}
+
+      {/* 层级选择弹窗 */}
+      {showLevelModal && (
+        <div className="level-modal-overlay" onClick={() => setShowLevelModal(false)}>
+          <div className="level-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="level-modal-header">
+              <h3>{language === 'zh' ? '选择测试层级' : 'Select Test Level'}</h3>
+              <button
+                className="level-modal-close"
+                onClick={() => setShowLevelModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="level-modal-body">
+              <p className="level-modal-hint">
+                {language === 'zh'
+                  ? '请选择你想要测试的Bloom分类法层级：'
+                  : 'Please select the Bloom\'s taxonomy level you want to test:'}
+              </p>
+              <div className="level-buttons-grid">
+                {tasks.map(task => (
+                  <button
+                    key={task.id}
+                    className={`level-button ${currentTestLevel === task.id ? 'active' : ''}`}
+                    onClick={() => handleLevelSelect(task.id)}
+                  >
+                    <div className="level-button-name">{task.name}</div>
+                    <div className="level-button-desc">{task.description}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
