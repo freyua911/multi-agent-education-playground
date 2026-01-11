@@ -349,7 +349,7 @@ function Game({ language, username }) {
               : 'This is the first turn of the classroom conversation with the learner. First, propose 3–5 more specific directions (e.g., subtopics, difficulty levels, or application scenarios) that the learner could choose from, with one short sentence explaining the focus of each option. Then ask the learner to pick ONE direction to continue, instead of directly answering the question or giving a full explanation.'
           }]
         : []
-      
+
       const learningGoalGuidanceMessage = shouldGuideLearningGoal
         ? [{
             role: 'system',
@@ -567,44 +567,44 @@ function Game({ language, username }) {
             )}
           </div>
           <div className="tasks-row-container">
-            <div className="tasks-grid-top">
-              {tasks.map(task => {
-                const percentage = task.maxPoints
-                  ? Math.min(100, ((task.points || 0) / task.maxPoints) * 100)
-                  : 0
-                const scoreDisplay = Number.isFinite(task.points)
-                  ? Number(task.points).toFixed(1).replace(/\.0$/, '')
-                  : '0'
+          <div className="tasks-grid-top">
+            {tasks.map(task => {
+              const percentage = task.maxPoints
+                ? Math.min(100, ((task.points || 0) / task.maxPoints) * 100)
+                : 0
+              const scoreDisplay = Number.isFinite(task.points)
+                ? Number(task.points).toFixed(1).replace(/\.0$/, '')
+                : '0'
 
-                return (
-                  <div key={task.id} className="task-item-top">
-                    <div className={`task-circle-top ${task.completed ? 'completed' : ''}`}>
-                      <svg className="task-progress-top" viewBox="0 0 100 100">
+              return (
+                <div key={task.id} className="task-item-top">
+                  <div className={`task-circle-top ${task.completed ? 'completed' : ''}`}>
+                    <svg className="task-progress-top" viewBox="0 0 100 100">
                         <circle className="task-progress-bg-top" cx="50" cy="50" r="36" />
-                        <circle
-                          className="task-progress-bar-top"
-                          cx="50"
-                          cy="50"
+                      <circle
+                        className="task-progress-bar-top"
+                        cx="50"
+                        cy="50"
                           r="36"
                           strokeDasharray={`${2 * Math.PI * 36}`}
                           strokeDashoffset={`${2 * Math.PI * 36 * (1 - percentage / 100)}`}
-                        />
-                      </svg>
-                      <div className="task-score-top">{scoreDisplay}</div>
-                    </div>
-                    <div className="task-name-top">{task.name}</div>
+                      />
+                    </svg>
+                    <div className="task-score-top">{scoreDisplay}</div>
                   </div>
-                )
-              })}
-            </div>
-            <button
-              type="button"
-              className="task-info-btn"
-              onClick={() => setIsTaskInfoOpen(true)}
-              aria-label={language === 'zh' ? '查看测试说明' : 'View test info'}
-            >
-              ?
-            </button>
+                  <div className="task-name-top">{task.name}</div>
+                </div>
+              )
+            })}
+          </div>
+          <button
+            type="button"
+            className="task-info-btn"
+            onClick={() => setIsTaskInfoOpen(true)}
+            aria-label={language === 'zh' ? '查看测试说明' : 'View test info'}
+          >
+            ?
+          </button>
           </div>
         </div>
         <div className="history-panel-top">

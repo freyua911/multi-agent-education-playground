@@ -648,16 +648,16 @@ export const sendBeaconOnUnload = () => {
         filename: `${meta?.username || 'user'}-classroom-unload.json`,
         userId: meta?.username || null,
         sessionId: meta?.sessionId || null,
-        meta: {
+      meta: {
           ...meta,
           segment: 'classroom',
           sessionType: 'game'
-        }
-      })
-      
-      if (navigator.sendBeacon) {
+      }
+    })
+
+    if (navigator.sendBeacon) {
         const blob = new Blob([gameBody], { type: 'application/json' })
-        navigator.sendBeacon('/api/save-log', blob)
+      navigator.sendBeacon('/api/save-log', blob)
       }
     }
     

@@ -177,6 +177,14 @@ function Test({ language, username }) {
     }
     if (stored?.testGoal) {
       setTestGoal(stored.testGoal)
+    } else if (stored?.learningGoal) {
+      // If testGoal is not set but learningGoal exists, use it as testGoal
+      setTestGoal(stored.learningGoal)
+      const currentState = loadConversationState() || {}
+      saveConversationState({
+        ...currentState,
+        testGoal: stored.learningGoal
+      })
     }
     setTestStateLoaded(true)
   }, [])
@@ -612,15 +620,15 @@ function Test({ language, username }) {
               : `Evaluator scores show significant variance (${evaluation.variance?.toFixed(3) || 'N/A'}), re-evaluating... (Attempt ${attemptCount})`)
           }
           
-          // 获取三个评估者的结果，使用currentTestLevel作为评估标准
+        // 获取三个评估者的结果，使用currentTestLevel作为评估标准
           // 如果之前有评估结果且方差>1，在评估时加入偏差提示
           evaluation = await evaluateAnswer(
-            questionToEvaluate,
-            userMessage,
-            currentTestLevel, // 使用currentTestLevel作为评估标准
+          questionToEvaluate,
+          userMessage,
+          currentTestLevel, // 使用currentTestLevel作为评估标准
             language,
             previousEvaluationDetails // 传入之前的评估结果，让评估者知道需要重新评估
-          )
+        )
           console.log('评估结果 (尝试', attemptCount, '):', evaluation)
           
           // 如果方差>1，需要重新评估
@@ -633,7 +641,7 @@ function Test({ language, username }) {
           // 如果方差<=1或达到最大尝试次数，退出循环
           break
         } while (evaluation.credibility === 1 && attemptCount < maxAttempts)
-        
+
         // 调用反馈agent综合三个评估者的输出，传递currentTestLevel
         feedbackResult = await generateFeedback(
           evaluation.details, 
@@ -882,14 +890,11 @@ function Test({ language, username }) {
           <h1>{language === 'zh' ? 'Bloom 分层测试' : 'Bloom-Level Testing'}</h1>
           <p>
             {language === 'zh'
-              ? '考官会根据你的回答依次推进六个层级，并由评估者打分。'
-              : 'The examiner guides you through Bloom\'s six levels and relays evaluator feedback.'}
+              ? 'Bloom 分类法（Bloom\'s Taxonomy）是教育心理学中用于分类教育目标的重要框架，由 Benjamin Bloom 于1956年提出。它将认知能力分为六个层次：记忆（Remember）、理解（Understand）、应用（Apply）、分析（Analyze）、评估（Evaluate）和创造（Create）。从低到高，每个层次代表不同的认知复杂度，是考核学生对学习内容不同程度的掌握和理解的手段。'
+              : 'Bloom\'s Taxonomy, proposed by Benjamin Bloom in 1956, is a framework for categorizing educational goals. It divides cognitive abilities into six levels: Remember, Understand, Apply, Analyze, Evaluate, and Create. From lower to higher order, each level represents different cognitive complexity, serving as a means to assess students\' varying degrees of mastery and understanding of learning content.'}
           </p>
         </div>
         <div className="test-top-actions">
-          <div className="test-score">
-            {language === 'zh' ? '平均得分' : 'Average Score'}: {averageScore.toFixed(1)}/10
-          </div>
           <button className="nav-btn" onClick={async () => {
             // 返回课堂前，先保存当前的test对话记录（保存完整记录）
             try {
@@ -902,7 +907,7 @@ function Test({ language, username }) {
             }
             navigate('/game')
           }}>
-            {language === 'zh' ? '返回课堂' : 'Back'}
+            {language === 'zh' ? '返回课堂' : 'Back to Classroom'}
           </button>
           <button className="test-end-btn" onClick={handleEndSession}>
             {language === 'zh'
@@ -923,6 +928,11 @@ function Test({ language, username }) {
                 </span>
               )}
             </div>
+            <div className="task-instruction">
+              {language === 'zh' 
+                ? '使用说明：您可以选择想要测试的等级来生成对应的问题。'
+                : 'Instructions: You can select the level you want to test to generate corresponding questions.'}
+            </div>
             <div className="tasks-grid">
               {tasks.map(task => {
                 const percentage = task.maxPoints
@@ -940,7 +950,7 @@ function Test({ language, username }) {
                     className={`task-item ${isSelected ? 'selected' : ''}`}
                     onClick={() => setSelectedLevel(task.id)}
                   >
-                    <div className={`task-circle ${task.completed ? 'completed' : ''}`}>
+                    <div className={`task-circle ${task.completed ? 'completed' : ''} ${isSelected ? 'selected' : ''}`}>
                       <svg className="task-progress" viewBox="0 0 100 100">
                         <circle className="task-progress-bg" cx="50" cy="50" r="45" />
                         <circle
@@ -952,7 +962,7 @@ function Test({ language, username }) {
                           strokeDashoffset={`${2 * Math.PI * 45 * (1 - percentage / 100)}`}
                         />
                       </svg>
-                      <div className="task-score">{scoreDisplay}</div>
+                      <div className={`task-score ${isSelected ? 'selected' : ''}`}>{scoreDisplay}</div>
                     </div>
                     <div className="task-name">{task.name}</div>
                   </div>
@@ -966,18 +976,8 @@ function Test({ language, username }) {
                 disabled={isLoading || allTasksCompleted || !selectedLevel}
                 onClick={handleStartTestClick}
               >
-                {language === 'zh' ? '开始测试' : 'Start Test'}
+                {language === 'zh' ? '生成问题' : 'Generate Question'}
               </button>
-            </div>
-          </section>
-          <section className="test-panel bloom-intro-panel">
-            <div className="bloom-intro-box">
-              <h3>{language === 'zh' ? 'Bloom 分类法简介' : 'About Bloom\'s Taxonomy'}</h3>
-              <p>
-                {language === 'zh'
-                  ? 'Bloom 分类法（Bloom\'s Taxonomy）是教育心理学中用于分类教育目标的重要框架，由 Benjamin Bloom 于1956年提出。它将认知能力分为六个层次：记忆（Remember）、理解（Understand）、应用（Apply）、分析（Analyze）、评估（Evaluate）和创造（Create）。从低到高，每个层次代表不同的认知复杂度，帮助教师设计更有效的教学活动和评估方法。'
-                  : 'Bloom\'s Taxonomy, proposed by Benjamin Bloom in 1956, is a framework for categorizing educational goals. It divides cognitive abilities into six levels: Remember, Understand, Apply, Analyze, Evaluate, and Create. From lower to higher order, each level represents increasing cognitive complexity, helping educators design effective teaching activities and assessment methods.'}
-              </p>
             </div>
           </section>
         </div>

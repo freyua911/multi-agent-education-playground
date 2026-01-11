@@ -528,7 +528,7 @@ function PreTest({ language, username }) {
                         value={String(val)}
                         checked={form.q4_priorKnowledge === String(val)}
                         onChange={(e) => handleChange('q4_priorKnowledge', e.target.value)}
-                      />
+                />
                       <span>{label}</span>
                     </label>
                   ))}

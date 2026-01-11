@@ -253,7 +253,7 @@
 
 .messages-display {
   display: grid;
-  grid-template-columns: 1.3fr 0.7fr 1fr; /* width change */
+  grid-template-columns: 1.3fr 0.5fr 0.9fr; /* width change */
   gap: 20px;
   padding: 0 20px;
   height: 100%;
